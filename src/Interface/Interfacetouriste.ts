@@ -20,6 +20,7 @@ interface ITouriste extends Document {
         };
         strategy:string
         google_id:string
+        facebook_id:string
     };
     resetPasswordToken?: string;
     resetPasswordTokenExpire?: Date | null;

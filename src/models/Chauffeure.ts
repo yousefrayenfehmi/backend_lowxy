@@ -10,7 +10,8 @@ const ChauffeurSchema = new Schema<IChauffeurs>({
        telephone: { type: String },
        motdepasse: { type: String},
        strategy:{type: String,},
-       google_id:{type:String}
+       google_id:{type:String},
+       facebook_id:{type:String}
    },
    vehicule: {
        matricule: { type: String, required: false },

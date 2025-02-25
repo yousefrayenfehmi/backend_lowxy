@@ -2,7 +2,6 @@ import express, { Router, Request, Response, NextFunction }  from "express";
 import { controllerchauffeurInstance } from "../Controlleur/Controllerchauffeur";
 import passport from "passport";
 import Fonction from "../fonction/Fonction";
-import '../fonction/Strategy'
 const router: Router = express.Router();
 
 class Routechauffeur {
@@ -28,31 +27,9 @@ class Routechauffeur {
         router.get('/chauffeur/:id', controllerchauffeurInstance.verifyToken,controllerchauffeurInstance.getChauffeurById);
         router.put('/chauffeur/:id', controllerchauffeurInstance.verifyToken,controllerchauffeurInstance.updateChauffeur);
         router.delete('/chauffeur/:id', controllerchauffeurInstance.verifyToken,controllerchauffeurInstance.deleteChauffeur);
-        router.get('/auth/google/chauffeur', passport.authenticate('google-chauffeur', {
-            scope: ['profile', 'email'],
-          }));
-                  
-          router.get('/auth/google/chauffeur/callback',
-            passport.authenticate('google-chauffeur', { failureRedirect: '/login' }),
-            (req, res) => {
-              // Redirection après une authentification réussie
-              res.status(200).json({succe:true}) // Rediriger vers le dashboard du chauffeur
-            }
-          );
-
-        router.get('/chauffeur/auth/facebook',
-                      passport.authenticate('facebook', controllerchauffeurInstance.facebookStrategy)
-                  );
-                  
-                  router.get('/auth/facebook/callback',
-                      passport.authenticate('facebook', { 
-                          failureRedirect: '/login' 
-                      }),
-                      (req, res) => {
-                          // Redirection réussie
-                          res.status(201).json({ success: true });
-                      }
-                  )
+        
+         
+          
 
 
 

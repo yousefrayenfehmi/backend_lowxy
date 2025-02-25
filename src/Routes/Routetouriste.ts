@@ -4,7 +4,6 @@ import passport, { Passport } from "passport";
 import { controllerVilleArticleInstance } from "../Controlleur/Controllervillearticle";
 import Fonction from "../fonction/Fonction";
 const router: Router = express.Router();
-
 class Routetouriste {
     constructor() {
         this.initRoutes();
@@ -30,49 +29,12 @@ class Routetouriste {
         router.get('/touristes', controllerclientInstance.verifyToken, controllerclientInstance.getAllTouristes);
         router.get('/touristecherche/:ville',controllerclientInstance.verifyToken,controllerVilleArticleInstance.getVilleArticleByLocalitation)
         //google authentification
-        router.get('/touristes/auth/google',
-            passport.authenticate('google-touriste'));
+       
+
+
+           
+           
           
-          router.get('/auth/google/callback', 
-            passport.authenticate('google-touriste', { failureRedirect: '/login' }),
-            (req: express.Request, res: express.Response) => {
-              if(req.user){
-                const touriste = req.user as any
-                console.log("touristes+=>"+touriste);
-                
-                const token = Fonction.createtokenetcookies(res, touriste._id);
-                res.json({
-                    message: "Authentication successful",
-                    user: touriste,
-                    token: token // Envoyer aussi le token si nécessaire côté client
-                });
-        
-              }else{
-                res.status(401).json({ message: 'Authentication failed' });
-
-              }
-
-
-              
-            });
-
-
-
-
-            router.get('/touriste/auth/facebook',
-              passport.authenticate('facebook', controllerclientInstance.facebookStrategy)
-          );
-          
-          router.get('/auth/facebook/callback',
-              passport.authenticate('facebook', { 
-                  failureRedirect: '/login' 
-              }),
-              (req, res) => {
-                  // Redirection réussie
-                  res.status(201).json({ success: true });
-              }
-          );
-
     }
 
     
