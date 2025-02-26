@@ -5,8 +5,7 @@ import { NextFunction, Request, Response } from 'express';
 import bcrypt from 'bcryptjs';
 import crypto from 'crypto';
 import passport from 'passport';
-import { Strategy as GoogleStrategy } from 'passport-google-oauth20';
-import { Strategy as FacebookStrategy } from 'passport-facebook';
+
 import jwt from 'jsonwebtoken';
 import dotenv from 'dotenv';
 import path from 'path';
@@ -15,28 +14,8 @@ import mongoose from 'mongoose';
 class controllerchauffeur {
     constructor() {
         dotenv.config({ path: path.resolve(__dirname, '../.env') });
-        this.facebookStrategy();
     }
-    async createChauffeurFromGoogle(chauffeurData: any) {
-        try {
-            const newChauffeur = new Chauffeurs({
-                info:{
-                googleId: chauffeurData.id,
-                name: chauffeurData.displayName,
-                email: chauffeurData.emails[0].value,
-                telephone:''
-                
-                }
-                
-                // Ajoutez d'autres informations nécessaires pour votre table chauffeur
-            });
-            
-            await newChauffeur.save();
-            return newChauffeur;
-        } catch (error) {
-            throw new Error('Erreur lors de l\'enregistrement du chauffeur');
-        }
-    }
+    
     
     async verifyToken(req: Request, res: Response, next: NextFunction):Promise<void> {
         if (mongoose.connection.readyState !== 1) {
@@ -68,49 +47,7 @@ class controllerchauffeur {
         } 
     }
 
-    async facebookStrategy() {
-        passport.use(new FacebookStrategy({
-            clientID: process.env.FACEBOOK_APP_ID as string,
-            clientSecret: process.env.FACEBOOK_APP_SECRET as string,
-            callbackURL: process.env.FACEBOOK_CALLBACK_URL as string,
-            profileFields: ['id', 'displayName', 'photos', 'email']
-        },
-        async (accessToken: string, refreshToken: string, profile: any, done: any) => {
-            if (mongoose.connection.readyState !== 1) {
-                await dbConnection.getConnection().catch(error => {
-                    return done(error, null);
-                });
-            }
-
-            try {
-                const existingChauffeur = await Chauffeurs.findOne({ 'info.facebookId': profile.id });
-
-                if (existingChauffeur) {
-                    return done(null, existingChauffeur);
-                }
-
-                const chauffeur = new Chauffeurs({
-                    info: {
-                        nom_complet: profile.displayName,
-                        email: profile.emails ? profile.emails[0].value : '',
-                        facebookId: profile.id,
-                        motdepasse: bcrypt.hashSync("facebook", 10),
-                        strategy: 'facebook',
-                    },
-                    securites: {
-                        isverified: true
-                    }
-                });
-
-                await chauffeur.save();
-                return done(null, chauffeur);
-            } catch (error) {
-                return done(error, null);
-            } finally {
-                await dbConnection.closeConnection();
-            }
-        }));
-    }
+    
 
     async login(req: Request, res: Response):Promise<void> {
         if (mongoose.connection.readyState !== 1) {

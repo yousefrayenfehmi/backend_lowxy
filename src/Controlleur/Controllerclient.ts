@@ -8,14 +8,11 @@ import path from 'path';
 import bcrypt from "bcryptjs";
 import crypto from 'crypto';
 import passport from "passport";
-import { Strategy as FacebookStrategy } from 'passport-facebook';
-import { Strategy as GoogleStrategy } from 'passport-google-oauth20';
 import mongoose from 'mongoose';
 
 class controllerclient {
     constructor() {
         dotenv.config({ path: path.resolve(__dirname, '../.env') });
-        this.facebookStrategy();
     }
 
     async verifyToken(req: Request, res: Response, next: NextFunction): Promise<void> {
@@ -54,55 +51,7 @@ class controllerclient {
         } 
     }
 
-    async facebookStrategy() {
-        passport.use(new FacebookStrategy({
-            clientID: process.env.FACEBOOK_APP_ID as string,
-            clientSecret: process.env.FACEBOOK_APP_SECRET as string,
-            callbackURL: process.env.FACEBOOK_CALLBACK_URL as string,
-            profileFields: ['id', 'displayName', 'photos', 'email']
-        },
-        async (accessToken: string, refreshToken: string, profile: any, done: any) => {
-            if (mongoose.connection.readyState !== 1) {
-                try {
-                    await dbConnection.getConnection();
-                } catch (error) {
-                    return done(error, null);
-                }
-            }
-
-            try {
-                const existingTouriste = await Touristes.findOne({ 'info.facebookId': profile.id });
-                
-                if (existingTouriste) {
-                    return done(null, existingTouriste);
-                }
-
-                const touriste = new Touristes({
-                    info: {
-                        nom_complet: profile.displayName,
-                        email: profile.emails ? profile.emails[0].value : '',
-                        facebookId: profile.id,
-                        motdepasse: bcrypt.hashSync("facebook", 10),
-                        strategy: 'facebook',
-                        telephone: '',
-                        adresse: {
-                            ville: '',
-                            pays: ''
-                        }
-                    },
-                    securites: {
-                        isverified: true
-                    }
-                });
-
-                await touriste.save();
-                return done(null, touriste);
-            } catch (error) {
-                return done(error, null);
-            }
-        }));
-    }
-
+    
     
 
     

@@ -9,6 +9,7 @@ interface IChauffeur extends Document {
          motdepasse: string;
          strategy:string
          google_id:string
+         facebook_id:string
      };
      vehicule: {
          matricule?: string;

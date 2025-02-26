@@ -52,6 +52,9 @@ const touristeSchema = new Schema<ITouriste>({
             type: String,},
         google_id:{
             type:String
+        },
+        facebook_id:{
+            type:String
         }
     },
     resetPasswordToken: {
