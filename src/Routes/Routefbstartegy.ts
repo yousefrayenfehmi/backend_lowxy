@@ -2,9 +2,9 @@ import { Router, Request, Response } from 'express';
 import passport from 'passport';
 import Fonction from '../fonction/Fonction';
 import { Chauffeurs } from '../models/Chauffeure';
-const routers = Router();
+const routerFacebook = Router();
 // Route pour les chauffeurs
-routers.get('/auth/facebook/chauffeur', (req, res) => {
+routerFacebook.get('/auth/facebook/chauffeur', (req, res) => {
   console.log('Création du cookie pour chauffeur (Facebook)');
   
   // Stocker le rôle dans un cookie
@@ -20,7 +20,7 @@ routers.get('/auth/facebook/chauffeur', (req, res) => {
 });
 
 // Route pour les touristes
-routers.get('/auth/facebook/touriste', (req, res) => {
+routerFacebook.get('/auth/facebook/touriste', (req, res) => {
   console.log('Création du cookie pour touriste (Facebook)');
   
   // Stocker le rôle dans un cookie
@@ -36,7 +36,7 @@ routers.get('/auth/facebook/touriste', (req, res) => {
 });
 
 // Route Facebook commune
-routers.get('/auth/facebook', 
+routerFacebook.get('/auth/facebook', 
     passport.authenticate('facebook', { scope: ['email', 'public_profile'] })
   );
 
@@ -48,7 +48,7 @@ routers.get('/auth/facebook',
 
 
 // Route de callback
-routers.get('/auth/facebook/callback', 
+routerFacebook.get('/auth/facebook/callback', 
   (req, res, next) => {
     console.log('Cookies dans le callback Facebook:', req.cookies);
     
@@ -105,4 +105,4 @@ routers.get('/auth/facebook/callback',
 );
 
 
-export default routers;
+export default routerFacebook;

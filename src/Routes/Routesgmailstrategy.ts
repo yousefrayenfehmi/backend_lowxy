@@ -1,10 +1,10 @@
 import { Router, Request, Response } from 'express';
 import passport from 'passport';
 import Fonction from '../fonction/Fonction';
-const router = Router();
+const routerGmail = Router();
 
 // Routes Google
-router.get('/auth/google/chauffeur', (req, res) => {
+routerGmail.get('/auth/google/chauffeur', (req, res) => {
   res.cookie('userRole', 'chauffeur', { 
     httpOnly: true,
     maxAge: 5 * 60 * 1000
@@ -12,7 +12,7 @@ router.get('/auth/google/chauffeur', (req, res) => {
   res.redirect('/auth/google');
 });
 
-router.get('/auth/google/touriste', (req, res) => {
+routerGmail.get('/auth/google/touriste', (req, res) => {
   res.cookie('userRole', 'touriste', { 
     httpOnly: true,
     maxAge: 5 * 60 * 1000
@@ -20,11 +20,11 @@ router.get('/auth/google/touriste', (req, res) => {
   res.redirect('/auth/google');
 });
 
-router.get('/auth/google', 
+routerGmail.get('/auth/google', 
   passport.authenticate('google', { scope: ['profile', 'email'] })
 );
 
-router.get('/auth/google/callback', 
+routerGmail.get('/auth/google/callback', 
   (req, res, next) => {
     console.log('Cookies dans le callback Facebook:', req.cookies);
     
@@ -79,4 +79,4 @@ router.get('/auth/google/callback',
 );
 
 
-export default router;
+export default routerGmail;
