@@ -18,7 +18,7 @@ passport.use('google',
       try {
         const email = profile.emails?.[0].value;
         if (!email) {
-          return done(new Error('Email non trouvé'), false);
+          return done(null, false, { message: 'Email non trouvé' });
         }
 
         // Vérifier si les cookies existent et récupérer le rôle
@@ -38,7 +38,7 @@ passport.use('google',
         }
         
         if (!resolvedRole || (resolvedRole !== 'chauffeur' && resolvedRole !== 'touriste')) {
-          return done(new Error('Rôle non spécifié ou invalide'), false);
+          return done(null, false, { message: 'Rôle non spécifié ou invalide' });
         }
 
         // Logique pour gérer chauffeurs et touristes
@@ -62,6 +62,11 @@ passport.use('google',
             await chauffeur.save();
             console.log('Nouveau chauffeur créé:', email);
           } else {
+            if(chauffeur.info.strategy !== 'google'){
+              return done(null, false, { 
+                message: 'Le chauffeur a une autre stratégie de connexion' 
+              });
+            }
             console.log('Chauffeur existant trouvé:', email);
           }
           
@@ -86,23 +91,26 @@ passport.use('google',
             await touriste.save();
             console.log('Nouveau touriste créé:', email);
           } else {
-            console.log('Touriste existant trouvé:', email);
+            if(touriste.info.strategy !== 'google'){
+              return done(null, false, { 
+                message: 'Le touriste a une autre stratégie de connexion' 
+              });
+            }
           }
           
           return done(null, touriste);
         }
       } catch (error) {
         console.error('Erreur d\'authentification:', error);
-        return done(error, false);
+        return done(null, false, { 
+          message: error instanceof Error ? error.message : 'Erreur d\'authentification' 
+        });
       }
     }
   )
 );
 
 
-
-
-// Sérialisation de l'utilisateur pour la session
 passport.serializeUser((user: any, done) => {
   try {
     console.log('Sérialisation utilisateur:', user);
@@ -112,14 +120,18 @@ passport.serializeUser((user: any, done) => {
       return done(new Error('Utilisateur invalide pour la sérialisation'), null);
     }
     
-    // Déterminer le rôle
+    // Déterminer le rôle de manière plus robuste
     let role = 'touriste';
-    if (user.constructor && user.constructor.modelName) {
-      role = user.constructor.modelName.toLowerCase() === 'chauffeurs' ? 'chauffeur' : 'touriste';
+    if (user.collection && user.collection.collectionName) {
+      role = user.collection.collectionName.toLowerCase().includes('chauffeurs') 
+        ? 'chauffeur' 
+        : 'touriste';
     }
     
-    done(null, { 
-      id: user._id.toString(), // Convertir en string pour être sûr
+    console.log('Rôle sérialisé:', role);
+    
+    done(null, {
+      id: user._id.toString(),
       role: role
     });
   } catch (error) {
@@ -128,7 +140,6 @@ passport.serializeUser((user: any, done) => {
   }
 });
 
-// Désérialisation de l'utilisateur depuis la session
 passport.deserializeUser(async (serializedUser: any, done) => {
   try {
     console.log('Désérialisation utilisateur:', serializedUser);
@@ -139,19 +150,23 @@ passport.deserializeUser(async (serializedUser: any, done) => {
     
     const { id, role } = serializedUser;
     
+    console.log('Rôle à désérialiser:', role);
+    
+    let user;
     if (role === 'chauffeur') {
-      const chauffeur = await Chauffeurs.findById(id).exec();
-      if (!chauffeur) {
+      user = await Chauffeurs.findById(id).exec();
+      if (!user) {
         return done(new Error('Chauffeur non trouvé'), null);
       }
-      return done(null, chauffeur);
     } else {
-      const touriste = await Touristes.findById(id).exec();
-      if (!touriste) {
+      user = await Touristes.findById(id).exec();
+      if (!user) {
         return done(new Error('Touriste non trouvé'), null);
       }
-      return done(null, touriste);
     }
+    
+    console.log('Utilisateur désérialisé:', user);
+    return done(null, user);
   } catch (error) {
     console.error('Erreur lors de la désérialisation:', error);
     done(error, null);

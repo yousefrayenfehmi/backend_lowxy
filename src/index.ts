@@ -17,6 +17,7 @@ import './fonction/Strategychauffeur';
 import './fonction/strategy.facebook'; 
 const app: Application = express();
 const port = 3000;
+import ejs from 'ejs';
 
 import { Touristes } from './models/Touriste';
 import { Chauffeurs } from './models/Chauffeure';
@@ -24,7 +25,8 @@ import { Chauffeurs } from './models/Chauffeure';
 // Cette fonction détermine quelles données de l'utilisateur doivent être stockées dans la session.
 // L'ID de l'utilisateur est couramment utilisé.
 app.use(cookieParser());
-
+app.set('view engine', 'ejs');
+app.set('views', path.join(__dirname, 'views'));
 
 app.use(cors({
     origin: 'http://localhost:4200',

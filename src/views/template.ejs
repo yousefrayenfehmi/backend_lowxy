@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>Authentification</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #f0f2f5;
+        }
+        .container {
+            background-color: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+        .error {
+            color: red;
+            margin-bottom: 20px;
+        }
+        .btn {
+            display: inline-block;
+            padding: 10px 20px;
+            background-color: #4CAF50;
+            color: white;
+            text-decoration: none;
+            border-radius: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <% if (typeof error !== 'undefined' && error) { %>
+            <div class="error">
+                <%= error %>
+            </div>
+        <% } %>
+
+        <h2>Authentification</h2>
+        
+        <div class="login-options">
+            <a href="/auth/facebook/touriste" class="btn">Connexion Touriste (Facebook)</a>
+            <a href="/auth/facebook/chauffeur" class="btn">Connexion Chauffeur (Facebook)</a>
+        </div>
+    </div>
+</body>
+</html>

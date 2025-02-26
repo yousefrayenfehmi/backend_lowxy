@@ -1,5 +1,7 @@
 import { Router, Request, Response } from 'express';
 import passport from 'passport';
+import Fonction from '../fonction/Fonction';
+import { Chauffeurs } from '../models/Chauffeure';
 const routers = Router();
 // Route pour les chauffeurs
 routers.get('/auth/facebook/chauffeur', (req, res) => {
@@ -38,39 +40,69 @@ routers.get('/auth/facebook',
     passport.authenticate('facebook', { scope: ['email', 'public_profile'] })
   );
 
+
+
+
+
+
+
+
 // Route de callback
-routers.get('/auth/facebook/callback',
+routers.get('/auth/facebook/callback', 
   (req, res, next) => {
     console.log('Cookies dans le callback Facebook:', req.cookies);
-    next();
-  },
-  passport.authenticate('facebook', { 
-    failureRedirect: '/login'
-  }),
-  (req: Request, res: Response) => {
-    console.log('Authentification Facebook réussie, nettoyage du cookie');
     
-    // Effacer le cookie après authentification
-    res.clearCookie('userRole');
-    
-    // Vérifier que l'utilisateur existe
-    if (!req.user) {
-      console.log('Utilisateur non défini après authentification Facebook');
-      return res.redirect('/login');
-    }
-    
-    // L'utilisateur est maintenant authentifié
-    const userType = (req.user as any).constructor.modelName.toLowerCase() === 'chauffeurs' 
-      ? 'chauffeur' 
-      : 'touriste';
-    
-    console.log(`Utilisateur authentifié via Facebook en tant que ${userType}`);
-    
-    res.json({ 
-      message: `Bienvenue, ${userType}!`, 
-      user: req.user 
-    });
+    // Utilisation de la méthode personnalisée d'authentification
+    passport.authenticate('facebook', (err:Error, user:any, info:any) => {
+      // Gestion des erreurs d'authentification
+      if (err) {
+        console.error('Erreur d\'authentification:', err);
+        return res.render('template', { 
+          error: err.message || 'Erreur lors de l\'authentification' 
+        });
+      }
+
+      // Si pas d'utilisateur trouvé
+      if (!user) {
+        console.log('Utilisateur non défini après authentification Facebook');
+        return res.render('template', { 
+          error: (info && info.message) || 'Impossible de s\'authentifier' 
+        });
+      }
+
+      // Tenter la connexion
+      req.login(user, (loginErr) => {
+        if (loginErr) {
+          console.error('Erreur de connexion:', loginErr);
+          return res.render('template', { 
+            error: 'Erreur lors de la connexion' 
+          });
+        }
+
+        // Effacer le cookie après authentification
+        res.clearCookie('userRole');
+
+        // Déterminer le type d'utilisateur
+        const userType = (user as any).constructor.modelName.toLowerCase() === 'chauffeurs'
+          ? 'chauffeur'
+          : 'touriste';
+
+        console.log(`Utilisateur authentifié via Facebook en tant que ${userType}`);
+
+        // Créer le token
+        const userId = user._id;
+        const token = Fonction.createtokenetcookies(res, userId);
+
+        // Réponse JSON
+        res.json({
+          message: `Bienvenue, ${userType}!`,
+          user: user,
+          token: token
+        });
+      });
+    })(req, res, next);
   }
 );
+
 
 export default routers;
