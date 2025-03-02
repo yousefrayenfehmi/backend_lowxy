@@ -9,6 +9,7 @@ import bcrypt from "bcryptjs";
 import crypto from 'crypto';
 import passport from "passport";
 import mongoose from 'mongoose';
+import { Chauffeurs } from "../models/Chauffeure";
 
 class controllerclient {
     constructor() {
@@ -142,14 +143,13 @@ class controllerclient {
                 res.status(404).json({ error: 'touriste non trouvé' });
                 return;
             }
-
-            const resetToken = crypto.randomBytes(20).toString("hex");
+            const resetToken = jwt.sign({ userId: touriste._id,type:'touriste' }, process.env.JWT_SECRET as string, { expiresIn: '1h' });
             const resetTokenExpiresAt = new Date(Date.now() + 1 * 60 * 60 * 1000);
             touriste.resetPasswordToken = resetToken;
             touriste.resetPasswordTokenExpire = resetTokenExpiresAt;
 
             await touriste.save();
-            Fonction.sendmail(email, 'password', "kmslqdkmlskfmdsfkmdskf");
+            Fonction.sendmail(email, 'password', "http://localhost:4200/changepassword/" + resetToken);
 
             res.status(200).json({
                 success: true,
@@ -197,44 +197,99 @@ class controllerclient {
         }
     }
 
-    async renvoyeruncode(req: Request, res: Response): Promise<void> {
+  async reenvoyeruncode(req: Request, res: Response): Promise<void> {
+    if (mongoose.connection.readyState !== 1) {
+        await dbConnection.getConnection().catch(error => {
+            res.status(500).json({ error: 'Erreur de connexion à la base de données' });
+            return;
+        });
+    }
+    try {
+        const id=req.user;
+        const touriste = await Touristes.findOne({ '_id': id });
+
+        if (!touriste) {
+            res.status(404).json({ error: 'touriste non trouveè' });
+            return;
+        }
+        const code = Fonction.generecode(100000, 999999);
+        touriste.securites.code = code;
+        Fonction.sendmail(touriste.info.email, 'Inscription', code.toString());
+        await touriste.save();
+        res.status(200).json({ success: true, message: 'Code envoyé avec success' });
+    } catch (error) {
+        res.status(500).json({ error: 'Erreur lors de l\'envoi du code' });
+
+  }
+
+
+}
+async completerprofil(req: Request, res: Response): Promise<void> {
         if (mongoose.connection.readyState !== 1) {
-            try {
-                await dbConnection.getConnection();
-            } catch (error) {
+            await dbConnection.getConnection().catch(error => {
                 res.status(500).json({ error: 'Erreur de connexion à la base de données' });
                 return;
-            }
+            });
         }
-
+    
         try {
-            const id = req.user;
-            const touriste = await Touristes.findById(id);
-
+            const id = req.params.id;
+            let touriste = await Touristes.findById(id);
+    
             if (!touriste) {
+                res.status(404).json({ error: 'Chauffeur non trouvé' });
+                return;
+            }
+    
+            // Mise à jour sélective des champs
+            const updateFields = {
+                // Champs textuels simples
+                'info.nom_complet': req.body.info?.nom_complet ?? touriste.info.nom_complet,
+                'info.telephone': req.body.info?.telephone ?? touriste.info.telephone,
+                
+                // Champs de date
+                'info.naissance': req.body.info?.naissance ?? touriste.info.naissance,
+                
+                // Adresse imbriquée
+                'info.adresse': {
+                    'ville': req.body.info?.adresse?.ville ?? touriste.info.adresse.ville,
+                    'pays': req.body.info?.adresse?.pays ?? touriste.info.adresse.pays
+                },
+                
+                // Champs additionnels
+                'info.Rib': req.body.info?.Rib ?? touriste.info.Rib
+            };
+            
+    
+            // Mise à jour partielle
+            const updatedChauffeur = await Touristes.findByIdAndUpdate(
+                id, 
+                { $set: updateFields }, 
+                { 
+                    new: true,  // Retourne le document mis à jour
+                    runValidators: true  // Valide les champs mis à jour
+                }
+            );
+    
+            if (!updatedChauffeur) {
                 res.status(404).json({ error: 'touriste non trouvé' });
                 return;
             }
-
-            const Code: string = Fonction.generecode();
-            touriste.securites = {
-                code: Code,
-                date: new Date(),
-                isverified: false,
-            };
-
-            await touriste.save();
-            Fonction.sendmail(touriste.info.email, 'Inscription', Code);
-
+    
             res.status(200).json({
-                success: true,
-                message: 'email envoyé avec success'
+                message: 'Profil mis à jour avec succès',
+                chauffeur: updatedChauffeur
             });
+    
         } catch (error) {
-            res.status(500).json({ error: 'Erreur lors de l\'envoi du nouveau code' });
+            console.error('Erreur lors de la mise à jour du touriste:', error);
+            res.status(500).json({ 
+                error: 'Erreur lors de la mise à jour du touriste'
+                
+            });
         }
     }
-
+    
     async Signup(req: Request, res: Response): Promise<void> {
         if (mongoose.connection.readyState !== 1) {
             try {
@@ -253,9 +308,14 @@ class controllerclient {
                 res.status(400).json({ error: 'Un touriste avec cet email existe déjà' });
                 return;
             }
+            const chauffeur=await Chauffeurs.findOne({ 'info.matricule': req.body.info.matricule });
+            if (chauffeur) {
+                res.status(400).json({ error: 'Un chauffeur avec cette matricule existe deja' });
+                return;
+            }
 
             const touriste = new Touristes(req.body);
-            const Code: string = Fonction.generecode();
+            const Code: string = Fonction.generecode(100000,900000);;
             touriste.securites = {
                 code: Code,
                 date: new Date(),

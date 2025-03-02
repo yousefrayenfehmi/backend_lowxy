@@ -20,14 +20,14 @@ class Routechauffeur {
         router.post('/chauffeur/resetpassword/:token', controllerchauffeurInstance.resetpassword);
         router.get('/chauffeur/logout', controllerchauffeurInstance.logout);
         router.post('/chauffeur-verifier-email',controllerchauffeurInstance.verifyToken,controllerchauffeurInstance.VeriffieEmail);
-        router.get('/admin-reenvoyercode',controllerchauffeurInstance.verifyToken,controllerchauffeurInstance.renvoyeruncode);
-        
+        router.get('/chauffeur-reenvoyercode',controllerchauffeurInstance.verifyToken,controllerchauffeurInstance.renvoyeruncode);
         //Crud avec token
         router.get('/chauffeurs', controllerchauffeurInstance.verifyToken,controllerchauffeurInstance.getAllChauffeurs);
         router.get('/chauffeur/:id', controllerchauffeurInstance.verifyToken,controllerchauffeurInstance.getChauffeurById);
         router.put('/chauffeur/:id', controllerchauffeurInstance.verifyToken,controllerchauffeurInstance.updateChauffeur);
         router.delete('/chauffeur/:id', controllerchauffeurInstance.verifyToken,controllerchauffeurInstance.deleteChauffeur);
-        
+        router.post('/completerchauffer/:id',controllerchauffeurInstance.completerprofil);
+
          
           
 

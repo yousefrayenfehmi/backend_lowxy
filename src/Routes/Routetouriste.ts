@@ -3,6 +3,7 @@ import { controllerclientInstance } from "../Controlleur/Controllerclient";
 import passport, { Passport } from "passport";
 import { controllerVilleArticleInstance } from "../Controlleur/Controllervillearticle";
 import Fonction from "../fonction/Fonction";
+import verifyToken from "../midlleware/VerifierToken";
 const router: Router = express.Router();
 class Routetouriste {
     constructor() {
@@ -17,7 +18,7 @@ class Routetouriste {
         router.post('/touriste/register', async (req: Request, res: Response) => {
           await controllerclientInstance.Signup(req, res);
         });        
-        router.get('/touriste-reenvoyercode',controllerclientInstance.verifyToken,controllerclientInstance.renvoyeruncode);
+        router.get('/touriste-reenvoyercode',controllerclientInstance.verifyToken,controllerclientInstance.reenvoyeruncode);
         router.post('/touriste/forgetpassword', controllerclientInstance.forgetpassword);
         router.post('/touriste/resetpassword/:token', controllerclientInstance.resetpassword);
         router.get('/touriste/logout', controllerclientInstance.logout);
@@ -30,10 +31,8 @@ class Routetouriste {
         router.get('/touristecherche/:ville',controllerclientInstance.verifyToken,controllerVilleArticleInstance.getVilleArticleByLocalitation)
         //google authentification
        
+        router.post('/verifyToken',verifyToken);
 
-
-           
-           
           
     }
 

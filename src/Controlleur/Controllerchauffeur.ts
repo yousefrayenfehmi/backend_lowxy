@@ -191,7 +191,7 @@ class controllerchauffeur {
                  res.status(400).json({ error: 'Un chauffeur avec cet email existe déjà' });
                  return
             }
-            const Code: string = Fonction.generecode();
+            const Code: string = Fonction.generecode(100000,900000);;
             chauffeur.securites = {
                 code: Code,
                 date: new Date(),
@@ -236,12 +236,8 @@ class controllerchauffeur {
                  res.status(404).json({ error: 'chauffeur non trouvé' });
                  return
             }
-            const Code: string = Fonction.generecode();
-            chauffeur.securites = {
-                code: Code,
-                date: new Date(),
-                isverified: false,
-            };
+            const Code: string = Fonction.generecode(100000,900000);;
+            chauffeur.securites.code = Code;
             await chauffeur.save();
             await Fonction.sendmail(chauffeur.info.email, 'Inscription', Code);
             res.status(200).json({
@@ -252,6 +248,73 @@ class controllerchauffeur {
             res.status(500).json({ error: 'Erreur lors de l\'envoi du code' });
         } 
     }
+
+
+    async completerprofil(req: Request, res: Response): Promise<void> {
+        if (mongoose.connection.readyState !== 1) {
+            await dbConnection.getConnection().catch(error => {
+                res.status(500).json({ error: 'Erreur de connexion à la base de données' });
+                return;
+            });
+        }
+    
+        try {
+            const id = req.params.id;
+            let chauffeur = await Chauffeurs.findById(id);
+    
+            if (!chauffeur) {
+                res.status(404).json({ error: 'Chauffeur non trouvé' });
+                return;
+            }
+    
+            // Mise à jour sélective des champs
+            const updateFields = {
+                // Champs textuels simples
+                'info.nom_complet': req.body.info?.nom_complet ?? chauffeur.info.nom_complet,
+                'info.telephone': req.body.info?.telephone ?? chauffeur.info.telephone,
+                
+                // Champs de date
+                'info.naissance': req.body.info?.naissance ?? chauffeur.info.naissance,
+                
+                // Adresse imbriquée
+                'info.adresse': {
+                    'ville': req.body.info?.adresse?.ville ?? chauffeur.info.adresse.ville,
+                    'pays': req.body.info?.adresse?.pays ?? chauffeur.info.adresse.pays
+                },
+                
+                // Champs additionnels
+                'info.Rib': req.body.info?.Rib ?? chauffeur.info.Rib,
+            };
+    
+            // Mise à jour partielle
+            const updatedChauffeur = await Chauffeurs.findByIdAndUpdate(
+                id, 
+                { $set: updateFields }, 
+                { 
+                    new: true,  // Retourne le document mis à jour
+                    runValidators: true  // Valide les champs mis à jour
+                }
+            );
+    
+            if (!updatedChauffeur) {
+                res.status(404).json({ error: 'Chauffeur non trouvé' });
+                return;
+            }
+    
+            res.status(200).json({
+                message: 'Profil mis à jour avec succès',
+                chauffeur: updatedChauffeur
+            });
+    
+        } catch (error) {
+            console.error('Erreur lors de la mise à jour du chauffeur:', error);
+            res.status(500).json({ 
+                error: 'Erreur lors de la mise à jour du chauffeur'
+                
+            });
+        }
+    }
+    
 
     async VeriffieEmail(req: Request, res: Response):Promise<void> {
         if (mongoose.connection.readyState !== 1) {
@@ -264,6 +327,7 @@ class controllerchauffeur {
         try {
             const id = req.user;
             const { code } = req.body;
+            let matricule=Fonction.generermatricle();
             const chauffeur = await Chauffeurs.findOne({
                 '_id': id,
                 'securites.code': code,
@@ -277,12 +341,18 @@ class controllerchauffeur {
                 });
                 return
             }
+            while(await Chauffeurs.findOne({info:{matricule:matricule}})){
+                matricule=Fonction.generermatricle();
+            }
 
             chauffeur.securites = {
                 isverified: true
             } as any;
 
+            chauffeur.info.matricule=matricule
+
             await chauffeur.save();
+            Fonction.sendmail(chauffeur.info.email, 'matricule', matricule);
             res.status(200).json({
                 success: true,
                 message: 'Email vérifié avec succès'

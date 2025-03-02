@@ -8,7 +8,9 @@ interface DecodedToken {
 }
 
 export const verifyToken = (req: Request, res: Response, next: NextFunction): void => {
-    const token = req.headers.authorization?.split(' ')[1] || req.cookies.jwt;
+  const authHeader = req.headers.authorization;
+  const token = authHeader && authHeader.split(' ')[1];
+  console.log(token);
   
     if (!token) {
       res.status(401).json({ message: "Accès refusé. Token manquant." });
@@ -26,7 +28,7 @@ export const verifyToken = (req: Request, res: Response, next: NextFunction): vo
   
       // Ajouter les informations décodées à l'objet request
       (req as any).userId = decoded.userId;
-      
+      res.status(200).json({ message: "Accès autorisé.", user: decoded });
       next();
     } catch (error) {
       console.error('Erreur de vérification du token:', error);

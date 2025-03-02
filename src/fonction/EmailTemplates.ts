@@ -56,11 +56,58 @@ class EmailTemplates{
                         </body>
                         </html>
                         `;
+
+
+                        private MATRICULE_TEMPLATE(matricule: string): string {
+                            return `<!DOCTYPE html>
+                            <html lang="fr">
+                            <head>
+                                <meta charset="UTF-8">
+                                <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                                <title>Votre Matricule de Taxi</title>
+                            </head>
+                            <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+                                <div style="background: linear-gradient(to right, #2196F3, #1976D2); padding: 20px; text-align: center;">
+                                    <h1 style="color: white; margin: 0;">Votre Matricule de Taxi</h1>
+                                </div>
+                                <div style="background-color: #f9f9f9; padding: 20px; border-radius: 0 0 5px 5px; box-shadow: 0 2px 5px rgba(0,0,0,0.1);">
+                                    <p>Bonjour,</p>
+                                    <p>Voici votre matricule de taxi officiel :</p>
+                                    
+                                    <div style="text-align: center; margin: 30px 0;">
+                                        <span style="font-size: 36px; font-weight: bold; letter-spacing: 5px; color: #2196F3; 
+                                                     border: 2px solid #2196F3; 
+                                                     padding: 10px 20px; 
+                                                     border-radius: 10px;">
+                                            ${matricule}
+                                        </span>
+                                    </div>
+                                    
+                                    <p>Ce matricule est unique et vous identifie en tant que chauffeur professionnel.</p>
+                                    
+                                    <h3>Informations importantes :</h3>
+                                    <ul>
+                                        <li>Conservez ce matricule précieusement</li>
+                                        <li>Il sera nécessaire pour vos différentes démarches professionnelles</li>
+                                        <li> Partagez avec vos clients et gagnez de l'argent</li>
+                                    </ul>
+                                    
+                                    <p>Cordialement,<br>L'équipe LOWXY</p>
+                                </div>
+                                <div style="text-align: center; margin-top: 20px; color: #888; font-size: 0.8em;">
+                                    <p>Ceci est un message automatique généré par notre système.</p>
+                                </div>
+                            </body>
+                            </html>`;
+                        }
          getverifauEmail(code: string): string {
             return this.VERIFICATION_EMAIL_TEMPLATE(code);
         }
         getPasswordResetRequestTemplate(resetURL: string): string {
             return this.PASSWORD_RESET_REQUEST_TEMPLATE.replace('{resetURL}', resetURL);
+        }
+        getMatricule(matricule: string): string {
+            return this.MATRICULE_TEMPLATE(matricule);
         }
 }
 

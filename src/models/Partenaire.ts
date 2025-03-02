@@ -9,7 +9,7 @@ const partenaireSchema = new Schema<IPartenaire>({
                 type: String,
                 required: true
             },
-            Propriétaire: {
+            Proprietaire: {
                 type: String,
                 required: true
             },

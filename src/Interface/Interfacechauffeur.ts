@@ -10,6 +10,13 @@ interface IChauffeur extends Document {
          strategy:string
          google_id:string
          facebook_id:string
+         matricule: string;
+         naissance: Date;
+         adresse: {
+            ville: string;
+            pays: string;
+        };
+        Rib:string
      };
      vehicule: {
          matricule?: string;

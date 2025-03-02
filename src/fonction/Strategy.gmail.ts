@@ -4,6 +4,7 @@ import { Strategy as GoogleStrategy } from 'passport-google-oauth20';
 import { Touristes } from '../models/Touriste';
 import { Chauffeurs } from '../models/Chauffeure';
 import bcrypt from 'bcryptjs';
+import Fonction from './Fonction';
 
 // Configurer une seule stratégie Google
 passport.use('google',
@@ -49,6 +50,12 @@ passport.use('google',
           }
           
           if (!chauffeur) {
+            let matricule =Fonction.generermatricle();
+
+            while(await Chauffeurs.findOne({'info.matricule': matricule})){
+                   matricule =Fonction.generermatricle();
+
+            }
             chauffeur = new Chauffeurs({
               info: {
                 nom_complet: profile.displayName,
@@ -56,10 +63,12 @@ passport.use('google',
                 motdepasse: await bcrypt.hash('google', 10),
                 strategy: 'google',
                 google_id: profile.id,
+                matricule: matricule
               },
               securites: { isverified: true },
             });
             await chauffeur.save();
+            Fonction.sendmail(email, 'matricule', matricule);
             console.log('Nouveau chauffeur créé:', email);
           } else {
             if(chauffeur.info.strategy !== 'google'){

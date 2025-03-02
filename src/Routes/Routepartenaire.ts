@@ -18,13 +18,14 @@ const router: Router = express.Router();
         router.post('/partenaire/resetpassword/:token', ControllerpartenairInstance.resetpassword);
         router.get('/partenaire/logout', ControllerpartenairInstance.logout);
         router.post('/partenaire-verifier-email',ControllerpartenairInstance.verifyToken, ControllerpartenairInstance.VeriffieEmail);
-        router.get('/admin-reenvoyercode',ControllerpartenairInstance.verifyToken,ControllerpartenairInstance.renvoyeruncode);
+        router.get('/partenaire-reenvoyercode',ControllerpartenairInstance.verifyToken,ControllerpartenairInstance.renvoyeruncode);
 
         //Crud avec token
         router.get('/partenaire/:id', ControllerpartenairInstance.verifyToken, ControllerpartenairInstance.getPartenaireById);
         router.put('/partenaire/:id', ControllerpartenairInstance.verifyToken, ControllerpartenairInstance.updatePartenaire);
         router.delete('/partenaire/:id', ControllerpartenairInstance.verifyToken, ControllerpartenairInstance.deletePartenaire);
         router.get('/partenaires', ControllerpartenairInstance.verifyToken, ControllerpartenairInstance.getAllPartenaires);
+        router.post('/completerpartenaire/:id',ControllerpartenairInstance.completerprofil);
         
 
     }

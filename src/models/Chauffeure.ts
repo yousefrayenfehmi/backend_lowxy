@@ -11,7 +11,23 @@ const ChauffeurSchema = new Schema<IChauffeurs>({
        motdepasse: { type: String},
        strategy:{type: String,},
        google_id:{type:String},
-       facebook_id:{type:String}
+       naissance: {
+        type: Date,
+        required: [false]
+    },
+    adresse: {
+        ville: {
+            type: String,
+            required: [false],
+        },
+        pays: {
+            type: String,
+            required: [false],
+        }
+    },
+       facebook_id:{type:String},
+       matricule: { type: String, required: false, unique: true },
+       Rib: { type: String, required: false }
    },
    vehicule: {
        matricule: { type: String, required: false },
@@ -44,11 +60,10 @@ const ChauffeurSchema = new Schema<IChauffeurs>({
    timestamps: true
 });
 ChauffeurSchema.index({ "securites.date": 1 }, { 
-    expireAfterSeconds: 10,
+    expireAfterSeconds: 900,
     partialFilterExpression: { "securites.isverified": false }
 });
-ChauffeurSchema.index({ "resetPasswordTokenExpire": 1 }, {
-    expireAfterSeconds: 3600})
+
 
 // Création du modèle
 const Chauffeur = mongoose.model<IChauffeurs>('Chauffeur', ChauffeurSchema);

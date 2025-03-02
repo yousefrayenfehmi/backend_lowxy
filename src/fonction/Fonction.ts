@@ -19,9 +19,22 @@ class Fonction {
     })
     return token
 }
+                static generermatricle(): string {
+                    const lettrs=this.generateRandomLetters(2);
+                    const numbers = this.generecode(10, 99);
+                    return `${lettrs}${numbers}`;
+                }
 
-                static generecode(): string {
-                    return Math.floor(100000 + Math.random() * 900000).toString();
+                 static generateRandomLetters(length: number): string {
+                    const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+                    return Array.from(
+                    { length }, 
+                    () => letters[Math.floor(Math.random() * letters.length)]
+                    ).join('');
+                }
+
+                static generecode(min:number,max:number): string {
+                    return Math.floor(min + Math.random() * max).toString();
                 }
                 static sendmail(email: string, raison: string, code: string) {
                     console.log('Envoi d\'email en cours');
@@ -64,6 +77,25 @@ class Fonction {
                                     console.log('Email de réinitialisation envoyé avec succès');
                                 }
                             });
+                        }
+                        if (raison === 'matricule') {
+                            const emailpassword = Emailtemplates.getMatricule(code);
+                            
+                            return Email.getTransporter().sendMail({
+                                from: process.env.EMAIL_USER,
+                                to: email,
+                                subject: 'Code de confirmation',
+                                html: emailpassword
+                            }, (error, info) => {
+                                if (error) {
+                                    console.error('Erreur lors de l\'envoi de l\'email de Matricule:', error);
+                                    throw error;
+                                } else {
+                                    console.log('Email de matricule envoyé avec succès');
+                                }
+                            });
+
+
                         }
                         
                         throw new Error('Raison d\'email non reconnue');

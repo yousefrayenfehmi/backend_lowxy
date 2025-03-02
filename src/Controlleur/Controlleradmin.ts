@@ -28,7 +28,7 @@ class Controlleradmin {
                  return
             }
             
-            const Code: string = Fonction.generecode();
+            const Code: string = Fonction.generecode(100000,900000);
             
             admin.securites = {
                 code: Code,
@@ -59,6 +59,61 @@ class Controlleradmin {
             res.status(500).json({ error: 'Erreur lors de la création de l\'admin' });
         } 
     }
+
+
+async completerprofil(req: Request, res: Response): Promise<void> {
+        if (mongoose.connection.readyState !== 1) {
+            await dbConnection.getConnection().catch(error => {
+                res.status(500).json({ error: 'Erreur de connexion à la base de données' });
+                return;
+            });
+        }
+    
+        try {
+            const id = req.params.id;
+            let admin = await Admin.findById(id);
+    
+            if (!admin) {
+                res.status(404).json({ error: 'Chauffeur non trouvé' });
+                return;
+            }
+    
+            const updateFields = {
+                'nom_complet': req.body.nom_complet ?? admin.nom_complet,
+                
+                'tel': req.body.tel ?? admin.tel
+            };
+    
+            const updatedadmin = await Admin.findByIdAndUpdate(
+                id, 
+                { $set: updateFields }, 
+                { 
+                    new: true,  // Retourne le document mis à jour
+                    runValidators: true  // Valide les champs mis à jour
+                }
+            );
+    
+            if (!updatedadmin) {
+                res.status(404).json({ error: 'admin non trouvé' });
+                return;
+            }
+    
+            res.status(200).json({
+                message: 'Profil mis à jour avec succès',
+                chauffeur: updatedadmin
+            });
+    
+        } catch (error) {
+            console.error('Erreur lors de la mise à jour du admin:', error);
+            res.status(500).json({ 
+                error: 'Erreur lors de la mise à jour du admin'
+                
+            });
+        }
+    }
+
+
+
 
     async login(req: Request, res: Response):Promise<void> {
         if (mongoose.connection.readyState !== 1) {
@@ -123,7 +178,7 @@ class Controlleradmin {
                  res.status(404).json({ error: 'Admin non trouvé' });
                  return
             }
-            const Code: string = Fonction.generecode();
+            const Code: string = Fonction.generecode(100000,900000);;
             admin.securites = {
                 code: Code,
                 date: new Date(),

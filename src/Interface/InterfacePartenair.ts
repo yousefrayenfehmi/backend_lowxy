@@ -5,7 +5,7 @@ interface IPartenaire extends Document {
     inforamtion: {
         inforegester: {
             nom_entreprise: string;
-            Propriétaire: string;
+            Proprietaire: string;
             email: string;
             telephone: string;
             motdepasse: string;

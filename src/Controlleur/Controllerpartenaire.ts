@@ -48,6 +48,7 @@ class ControllerPartenaire {
         }
 
         try {
+            
             const { email } = req.body.inforamtion.inforegester;
             const partenaireExistant = await Partenaires.findOne({ 'inforamtion.inforegester.email': email });
 
@@ -57,7 +58,9 @@ class ControllerPartenaire {
             }
 
             const partenaire = new Partenaires(req.body);
-            const Code: string = Fonction.generecode();
+            console.log(partenaire);
+            
+            const Code: string = Fonction.generecode(100000,900000);;
             partenaire.securites = {
                 code: Code,
                 date: new Date(),
@@ -72,6 +75,8 @@ class ControllerPartenaire {
 
             res.status(201).json({ partenaire: savedPartenaire, token });
         } catch (error) {
+            console.log(error);
+            
             res.status(500).json({ error: 'Erreur lors de la création du partenaire' });
         } 
     }
@@ -123,6 +128,102 @@ class ControllerPartenaire {
         } 
     }
 
+
+    async completerprofil(req: Request, res: Response): Promise<void> {
+            if (mongoose.connection.readyState !== 1) {
+                await dbConnection.getConnection().catch(error => {
+                    res.status(500).json({ error: 'Erreur de connexion à la base de données' });
+                    return;
+                });
+            }
+        
+            try {
+                const id = req.params.id;
+                let partenaire = await Partenaires.findById(id);
+        
+                if (!partenaire) {
+                    res.status(404).json({ error: 'Chauffeur non trouvé' });
+                    return;
+                }
+        
+                // Mise à jour sélective des champs
+                const updateFields = {
+                    // Mise à jour des informations de registre (si nécessaire)
+                    'information.inforegester.nom_entreprise': 
+                        req.body.information?.inforegester?.nom_entreprise ?? 
+                        partenaire.inforamtion.inforegester.nom_entreprise,
+                    
+                    'information.inforegester.Propriétaire': 
+                        req.body.information?.inforegester?.Proprietaire
+                        ?? 
+                        partenaire.inforamtion.inforegester.Proprietaire
+                        ,
+                    
+                    'information.inforegester.email': 
+                        req.body.information?.inforegester?.email ?? 
+                        partenaire.inforamtion.inforegester.email,
+                    
+                    'information.inforegester.telephone': 
+                        req.body.information?.inforegester?.telephone ?? 
+                        partenaire.inforamtion.inforegester.telephone,
+                
+                    // Ne pas mettre à jour le mot de passe
+                    
+                    // Mise à jour des informations de société
+                    'information.info_societe.numero_serie': 
+                        req.body.information?.info_societe?.numero_serie ?? 
+                        partenaire.inforamtion.info_societe.numero_serie,
+                    
+                    'information.info_societe.domaines': 
+                        req.body.information?.info_societe?.domaines ?? 
+                        partenaire.inforamtion.info_societe.domaines,
+                    
+                    // Mise à jour de l'adresse
+                    'information.info_societe.adresse': {
+                        'ville': 
+                            req.body.information?.info_societe?.adresse?.ville ?? 
+                            partenaire.inforamtion.info_societe.adresse.ville,
+                        
+                        'pays': 
+                            req.body.information?.info_societe?.adresse?.pays ?? 
+                            partenaire.inforamtion.info_societe.adresse.pays,
+                        
+                        'rue': 
+                            req.body.information?.info_societe?.adresse?.rue ?? 
+                            partenaire.inforamtion.info_societe.adresse.rue
+                    }
+                }
+        
+                // Mise à jour partielle
+                const updatedpartenaire = await Partenaires.findByIdAndUpdate(
+                    id, 
+                    { $set: updateFields }, 
+                    { 
+                        new: true,  // Retourne le document mis à jour
+                        runValidators: true  // Valide les champs mis à jour
+                    }
+                );
+        
+                if (!updatedpartenaire) {
+                    res.status(404).json({ error: 'partenaire non trouvé' });
+                    return;
+                }
+        
+                res.status(200).json({
+                    message: 'Profil mis à jour avec succès',
+                    chauffeur: updatedpartenaire
+                });
+        
+            } catch (error) {
+                console.error('Erreur lors de la mise à jour du partenaire:', error);
+                res.status(500).json({ 
+                    error: 'Erreur lors de la mise à jour du partenaire'
+                    
+                });
+            }
+        }
+        
+
     async logout(req: Request, res: Response): Promise<void> {
         if (mongoose.connection.readyState !== 1) {
             await dbConnection.getConnection().catch(error => {
@@ -160,12 +261,8 @@ class ControllerPartenaire {
                 res.status(404).json({ error: 'Partenaire non trouvé' });
                 return;
             }
-            const Code: string = Fonction.generecode();
-            partenaire.securites = {
-                code: Code,
-                date: new Date(),
-                isverified: false,
-            };
+            const Code: string = Fonction.generecode(100000,900000);;
+            partenaire.securites.code = Code;
             await partenaire.save();
             await Fonction.sendmail(partenaire.inforamtion.inforegester.email, 'Inscription', Code);
             res.status(200).json({
