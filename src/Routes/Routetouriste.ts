@@ -17,7 +17,9 @@ class Routetouriste {
         router.post('/touriste/login', controllerclientInstance.login);
         router.post('/touriste/register', async (req: Request, res: Response) => {
           await controllerclientInstance.Signup(req, res);
-        });        
+        });
+        router.post('/touriste/auth/google',controllerclientInstance.authavecgoogle)  
+        router.post('/touriste/auth/facebook',controllerclientInstance.authavecfacebook)      
         router.get('/touriste-reenvoyercode',controllerclientInstance.verifyToken,controllerclientInstance.reenvoyeruncode);
         router.post('/touriste/forgetpassword', controllerclientInstance.forgetpassword);
         router.post('/touriste/resetpassword/:token', controllerclientInstance.resetpassword);
@@ -30,7 +32,6 @@ class Routetouriste {
         router.get('/touristes', controllerclientInstance.verifyToken, controllerclientInstance.getAllTouristes);
         router.get('/touristecherche/:ville',controllerclientInstance.verifyToken,controllerVilleArticleInstance.getVilleArticleByLocalitation)
         //google authentification
-       
         router.post('/verifyToken',verifyToken);
 
           

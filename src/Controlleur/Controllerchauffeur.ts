@@ -58,8 +58,11 @@ class controllerchauffeur {
 
         try {
             const { email, motdepasse } = req.body;
-            const chauffeur = await Chauffeurs.findOne({ 'info.email': email, 'info.securites.isverified': true });
-
+            console.log(email, motdepasse);
+            
+            const chauffeur = await Chauffeurs.findOne({ 'info.email': email, 'securites.isverified': true });
+            console.log(chauffeur);
+            
             if (!chauffeur) {
                  res.status(404).json({ error: 'chauffeur non trouvé' });
                  return
@@ -79,8 +82,8 @@ class controllerchauffeur {
                     _id: chauffeur._id,
                     info: {
                         nom: chauffeur.info.nom_complet,
-                        prenom: chauffeur.info.email,
-                        email: chauffeur.info.telephone
+                        email: chauffeur.info.email,
+                        telephone: chauffeur.info.telephone
                     }
                 },
                 token
@@ -89,6 +92,98 @@ class controllerchauffeur {
             res.status(500).json({ error: 'Erreur lors de la connexion' });
         } 
     }
+
+    async authavecgoogle(req: Request, res: Response): Promise<void> {
+        if (mongoose.connection.readyState !== 1) {
+            await dbConnection.getConnection().catch(error => {
+                res.status(500).json({ error: 'Erreur de connexion à la base de données' });
+                return;
+        })
+    }
+    try {
+        const {email}=req.body.info;
+        const chauffeur=await Chauffeurs.findOne({'info.email':email});
+        if(chauffeur && chauffeur.info.strategy!=='google'){
+            res.status(400).json({ error: 'Un chauffeur avec cet email existe déjà' });
+                return;
+        }
+        else if(chauffeur && chauffeur.info.strategy==='google'){
+            const token=Fonction.createtokenetcookies(res, chauffeur._id);
+            res.status(201).json({ success: true, chauffeur: chauffeur, token: token });
+        }
+
+        const chauffeure = new Chauffeurs(req.body);
+        chauffeure.info.strategy="google";
+        chauffeure.info.motdepasse=await bcrypt.hash("google", 10);
+        chauffeure.info.matricule="";
+        chauffeure.securites.isverified=true;
+        const savechauvveure=await chauffeure.save();
+        if(savechauvveure){
+            const matricule=Fonction.generermatricle();
+            Fonction.sendmail(email, 'matricule', matricule);
+            chauffeure.info.matricule=matricule;
+            await chauffeure.save();
+            const token=Fonction.createtokenetcookies(res, chauffeure._id);
+            res.status(201).json({ success: true, chauffeur: chauffeure, token: token });
+        }
+
+        
+
+    } catch (error) {
+        console.log(error);
+        
+        res.status(500).json({ error: 'Erreur lors de la création du chauffeur' });
+
+    }
+
+}
+
+
+async authavecfacebook(req: Request, res: Response): Promise<void> {
+    if (mongoose.connection.readyState !== 1) {
+        await dbConnection.getConnection().catch(error => {
+            res.status(500).json({ error: 'Erreur de connexion à la base de données' });
+            return;
+    })
+}
+try {
+    const {email}=req.body.info;
+    const chauffeur=await Chauffeurs.findOne({'info.email':email});
+    if(chauffeur && chauffeur.info.strategy!=='facebook'){
+        res.status(400).json({ error: 'Un chauffeur avec cet email existe déjà' });
+            return;
+    }
+    else if(chauffeur && chauffeur.info.strategy==='facebook'){
+        const token=Fonction.createtokenetcookies(res, chauffeur._id);
+        res.status(201).json({ success: true, chauffeur: chauffeur, token: token });
+    }
+    const chauffeure = new Chauffeurs(req.body);
+    chauffeure.info.strategy="facebook";
+    chauffeure.info.motdepasse=await bcrypt.hash("google", 10);
+    chauffeure.info.matricule="";
+    chauffeure.securites.isverified=true;
+    const savechauvveure=await chauffeure.save();
+
+    if(savechauvveure){
+        const matricule=Fonction.generermatricle();
+        Fonction.sendmail(email, 'matricule', matricule);
+        chauffeure.info.matricule=matricule;
+        await chauffeure.save();
+        const token=Fonction.createtokenetcookies(res, chauffeure._id);
+        res.status(201).json({ success: true, chauffeur: chauffeure, token: token });
+    }
+
+    
+
+} catch (error) {
+    console.log(error);
+    
+    res.status(500).json({ error: 'Erreur lors de la création du chauffeur' });
+
+}
+
+}
+
 
     async logout(req: Request, res: Response):Promise<void> {
         if (mongoose.connection.readyState !== 1) {
@@ -202,14 +297,7 @@ class controllerchauffeur {
             const token = Fonction.createtokenetcookies(res, savedChauffeur._id);
             await Fonction.sendmail(email, 'Inscription', Code);
             res.status(201).json({
-                chauffeur: {
-                    _id: savedChauffeur._id,
-                    info: {
-                        nom: savedChauffeur.info.nom_complet,
-                        prenom: savedChauffeur.info.email,
-                        email: savedChauffeur.info.telephone
-                    }
-                },
+                chauffeur: savedChauffeur,
                 token
             });
         } catch (error) {

@@ -21,6 +21,8 @@ class Routechauffeur {
         router.get('/chauffeur/logout', controllerchauffeurInstance.logout);
         router.post('/chauffeur-verifier-email',controllerchauffeurInstance.verifyToken,controllerchauffeurInstance.VeriffieEmail);
         router.get('/chauffeur-reenvoyercode',controllerchauffeurInstance.verifyToken,controllerchauffeurInstance.renvoyeruncode);
+        router.post('/chauffeur/auth/google',controllerchauffeurInstance.authavecgoogle)        
+        router.post('/chauffeur/auth/facebook',controllerchauffeurInstance.authavecfacebook)
         //Crud avec token
         router.get('/chauffeurs', controllerchauffeurInstance.verifyToken,controllerchauffeurInstance.getAllChauffeurs);
         router.get('/chauffeur/:id', controllerchauffeurInstance.verifyToken,controllerchauffeurInstance.getChauffeurById);

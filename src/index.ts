@@ -25,11 +25,12 @@ dotenv.config({ path: path.resolve(__dirname, '../.env') });
 
 
 app.use(cors({
-    origin: process.env.FRONT_END_URL,
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization'],
-    exposedHeaders: ['Authorization']
-  }));
+  origin: process.env.FRONT_END_URL || 'http://localhost:4200', // Utilisez une variable d'environnement pour plus de flexibilité
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'], // Méthodes autorisées
+  allowedHeaders: ['Content-Type', 'Authorization'], // Headers autorisés
+  credentials: true, // Autorisez les cookies et autres credentials
+}));
+
 
 app.use(express.json());
 

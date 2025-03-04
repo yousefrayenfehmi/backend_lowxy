@@ -289,6 +289,79 @@ async completerprofil(req: Request, res: Response): Promise<void> {
             });
         }
     }
+
+    async authavecgoogle(req: Request, res: Response): Promise<void> {
+        if (mongoose.connection.readyState !== 1) {
+            await dbConnection.getConnection().catch(error => {
+                res.status(500).json({ error: 'Erreur de connexion à la base de données' });
+                return;
+        })
+    }
+    try {
+        const {email}=req.body.info;
+        const touriste=await Touristes.findOne({'info.email':email});
+
+        if( touriste && touriste.info.strategy=='facebook'){
+            res.status(400).json({ error: 'Un touriste avec cet email existe déjà' });
+                return;
+        }
+        else if(touriste && touriste.info.strategy=='google'){
+            const token=Fonction.createtokenetcookies(res,touriste._id);
+            res.status(200).json({ success: true, touriste: touriste, token: token });
+                return;
+        }
+        const touristee = new Touristes(req.body);
+        touristee.info.strategy="google";
+        touristee.info.motdepasse=await bcrypt.hash("google", 10);
+        touristee.securites.isverified=true;
+        await touristee.save();
+        const token=Fonction.createtokenetcookies(res, touristee._id);
+        res.status(201).json({ success: true, touriste: touristee, token: token });
+
+    } catch (error) {
+        console.log('Erreur lors de la création du touriste:', error);
+        
+        res.status(500).json({ error: 'Erreur lors de la création du touriste' });
+
+    }
+
+}
+
+
+
+
+async authavecfacebook(req: Request, res: Response): Promise<void> {
+        if (mongoose.connection.readyState !== 1) {
+            await dbConnection.getConnection().catch(error => {
+                res.status(500).json({ error: 'Erreur de connexion à la base de données' });
+                return;
+        })
+    }
+    try {
+        const {email}=req.body.info;
+        const touriste=await Touristes.findOne({'info.email':email});
+        if(touriste && touriste.info.strategy=='google'){
+            res.status(400).json({ error: 'Un touriste avec cet email existe déjà' });
+                return;
+        }
+        else if(touriste && touriste.info.strategy=='facebook'){
+            const token=Fonction.createtokenetcookies(res,touriste._id);
+            res.status(200).json({ success: true, touriste: touriste, token: token });
+                return;
+        }
+        const touristee = new Touristes(req.body);
+        touristee.info.strategy="facebook";
+        touristee.info.motdepasse=await bcrypt.hash("facebook", 10);
+        touristee.securites.isverified=true;
+        await touristee.save();
+        const token=Fonction.createtokenetcookies(res, touristee._id);
+        res.status(201).json({ success: true, touriste: touristee, token: token });
+
+    } catch (error) {
+        res.status(500).json({ error: 'Erreur lors de la création du touriste' });
+
+    }
+}
     
     async Signup(req: Request, res: Response): Promise<void> {
         if (mongoose.connection.readyState !== 1) {
@@ -308,9 +381,9 @@ async completerprofil(req: Request, res: Response): Promise<void> {
                 res.status(400).json({ error: 'Un touriste avec cet email existe déjà' });
                 return;
             }
-            const chauffeur=await Chauffeurs.findOne({ 'info.matricule': req.body.info.matricule });
-            if (chauffeur) {
-                res.status(400).json({ error: 'Un chauffeur avec cette matricule existe deja' });
+            const chauffeur=await Chauffeurs.findOne({ 'info.matricule': req.body.info.matricule_taxi });
+            if (!chauffeur) {
+                res.status(400).json({ error: "Un chauffeur avec cette matricule n'existe pas " });
                 return;
             }
 
@@ -323,20 +396,13 @@ async completerprofil(req: Request, res: Response): Promise<void> {
             };
             touriste.info.strategy = "local";
             touriste.info.motdepasse = await bcrypt.hash(touriste.info.motdepasse, 10);
-
+            touriste.info.matricule_taxi=req.body.info.matricule_taxi;
             const savedTouriste = await touriste.save();
             const token = Fonction.createtokenetcookies(res, savedTouriste._id);
             await Fonction.sendmail(email, 'Inscription', Code);
             
             res.status(201).json({
-                touriste: {
-                    _id: savedTouriste._id,
-                    info: {
-                        nom_complet: savedTouriste.info.nom_complet,
-                        email: savedTouriste.info.email,
-                        tel: savedTouriste.info.telephone
-                    }
-                },
+                touriste: savedTouriste,
                 token
             });
         } catch (error) {
