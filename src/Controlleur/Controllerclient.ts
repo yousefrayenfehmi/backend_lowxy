@@ -53,6 +53,33 @@ class controllerclient {
     }
 
     
+    async getTouristeByToken(req: Request, res: Response): Promise<void> {
+        try {
+            if (mongoose.connection.readyState !== 1) {
+                await dbConnection.getConnection();
+            }
+    
+            const authHeader = req.headers.authorization;
+            const token = authHeader && authHeader.split(' ')[1];
+    
+            if (!token) {
+                return res.status(401).json({ message: 'Token manquant' });
+            }
+    
+            const decoded = jwt.verify(token as string, process.env.JWT_SECRET as string);
+            const { id } = decoded as { id: string };
+    
+            const touriste = await Touristes.findById(id).select('-password'); // Exclure le mot de passe
+    
+            if (!touriste) {
+                return res.status(404).json({ message: 'Touriste non trouvé' });
+            }
+    
+            res.status(200).json(touriste);
+        } catch (err) {
+            return res.status(403).json({ message: 'Token invalide' });
+        }
+    }
     
 
     

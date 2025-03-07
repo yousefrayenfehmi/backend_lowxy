@@ -33,6 +33,10 @@ class Routetouriste {
         router.get('/touristecherche/:ville',controllerclientInstance.verifyToken,controllerVilleArticleInstance.getVilleArticleByLocalitation)
         //google authentification
         router.post('/verifyToken',verifyToken);
+        //get User by token 
+        router.get('/touriste-by-token', controllerclientInstance.getTouristeByToken);
+
+
 
           
     }
