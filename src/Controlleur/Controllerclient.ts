@@ -8,7 +8,7 @@ import path from 'path';
 import bcrypt from "bcryptjs";
 import crypto from 'crypto';
 import passport from "passport";
-import mongoose from 'mongoose';
+import mongoose, { Types } from 'mongoose';
 import { Chauffeurs } from "../models/Chauffeure";
 
 class controllerclient {
@@ -69,7 +69,7 @@ class controllerclient {
             const decoded = jwt.verify(token as string, process.env.JWT_SECRET as string);
             const { id } = decoded as { id: string };
     
-            const touriste = await Touristes.findById(id).select('-password'); // Exclure le mot de passe
+            const touriste = await Touristes.findById(id).select('-motdepasse'); // Exclure le mot de passe
     
             if (!touriste) {
                 return res.status(404).json({ message: 'Touriste non trouvé' });
@@ -223,6 +223,59 @@ class controllerclient {
             res.status(500).json({ error: 'Erreur lors de la réinitialisation du mot de passe' });
         }
     }
+
+   
+    
+    async changePassword(req: Request, res: Response): Promise<void> {
+        const authHeader = req.headers.authorization;
+        const token = authHeader && authHeader.split(' ')[1];
+    
+        if (!token) {
+            return res.status(401).json({ message: 'Token manquant' });
+        }
+    
+        const { currentPassword, newPassword } = req.body;
+    
+        if (!newPassword || newPassword.length < 8) {
+            return res.status(400).json({ message: 'New password must be at least 8 characters long' });
+        }
+    
+        try {
+            // Decode the token
+            const decoded = jwt.verify(token as string, process.env.JWT_SECRET as string);
+            const { id } = decoded as { id: string };
+    
+            // Ensure the id is a valid ObjectId
+            if (!Types.ObjectId.isValid(id)) {
+                return res.status(400).json({ message: 'Invalid user ID in token' });
+            }
+    
+            // Find the user by id, excluding the password
+            const user = await Touristes.findById(id).select('-password');
+    
+            if (!user) {
+                return res.status(404).json({ message: 'Touriste non trouvé' });
+            }
+    
+            // Check if the current password matches
+            const isMatch = await bcrypt.compare(currentPassword, user.password);
+            if (!isMatch) {
+                return res.status(400).json({ message: 'Current password is incorrect' });
+            }
+    
+            // Hash the new password
+            const hashedPassword = await bcrypt.hash(newPassword, 10);
+            user.password = hashedPassword;
+            await user.save();
+    
+            res.status(200).json({ message: 'Password changed successfully' });
+        } catch (error) {
+            console.error('Error:', error);
+            res.status(500).json({ message: 'An error occurred while changing the password' });
+        }
+    }
+    
+      
 
   async reenvoyeruncode(req: Request, res: Response): Promise<void> {
     if (mongoose.connection.readyState !== 1) {
@@ -408,11 +461,12 @@ async authavecfacebook(req: Request, res: Response): Promise<void> {
                 res.status(400).json({ error: 'Un touriste avec cet email existe déjà' });
                 return;
             }
+            /*
             const chauffeur=await Chauffeurs.findOne({ 'info.matricule': req.body.info.matricule_taxi });
             if (!chauffeur) {
                 res.status(400).json({ error: "Un chauffeur avec cette matricule n'existe pas " });
                 return;
-            }
+            }*/
 
             const touriste = new Touristes(req.body);
             const Code: string = Fonction.generecode(100000,900000);;

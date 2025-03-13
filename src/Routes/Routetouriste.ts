@@ -23,6 +23,8 @@ class Routetouriste {
         router.get('/touriste-reenvoyercode',controllerclientInstance.verifyToken,controllerclientInstance.reenvoyeruncode);
         router.post('/touriste/forgetpassword', controllerclientInstance.forgetpassword);
         router.post('/touriste/resetpassword/:token', controllerclientInstance.resetpassword);
+        router.post('/touriste-change-password',  controllerclientInstance.changePassword);
+
         router.get('/touriste/logout', controllerclientInstance.logout);
         router.post('/touriste-verifier-email',controllerclientInstance.verifyToken ,controllerclientInstance.VeriffieEmail);
         //Crud avec token
@@ -32,7 +34,7 @@ class Routetouriste {
         router.get('/touristes', controllerclientInstance.verifyToken, controllerclientInstance.getAllTouristes);
         router.get('/touristecherche/:ville',controllerclientInstance.verifyToken,controllerVilleArticleInstance.getVilleArticleByLocalitation)
         //google authentification
-        router.post('/verifyToken',verifyToken);
+        router.post('/verifyToken',controllerclientInstance.verifyToken);
         //get User by token 
         router.get('/touriste-by-token', controllerclientInstance.getTouristeByToken);
 
