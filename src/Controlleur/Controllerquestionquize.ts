@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { QuestionBanks } from '../models/Questionquize';
+import { QuestionBanks} from '../models/Questionquize';
 import { dbConnection } from '../BDconnection/BDconnection';
 import mongoose from 'mongoose';
 

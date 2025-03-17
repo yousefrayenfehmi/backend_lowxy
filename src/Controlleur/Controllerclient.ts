@@ -10,6 +10,7 @@ import crypto from 'crypto';
 import passport from "passport";
 import mongoose from 'mongoose';
 import { Chauffeurs } from "../models/Chauffeure";
+import { log } from "console";
 
 class controllerclient {
     constructor() {
@@ -28,6 +29,8 @@ class controllerclient {
     
         const authHeader = req.headers.authorization;
         const token = authHeader && authHeader.split(' ')[1];
+        console.log(token);
+        
     
         if (!token) {
             res.status(401).json({ message: 'Token manquant' });
@@ -46,6 +49,8 @@ class controllerclient {
             }
             
             req.user = id;
+            console.log(id);
+            
             next();
         } catch (err) {
             res.status(403).json({ message: 'Token invalide' });
@@ -63,7 +68,8 @@ class controllerclient {
             const token = authHeader && authHeader.split(' ')[1];
     
             if (!token) {
-                return res.status(401).json({ message: 'Token manquant' });
+                 res.status(401).json({ message: 'Token manquant' });
+                 return 
             }
     
             const decoded = jwt.verify(token as string, process.env.JWT_SECRET as string);
@@ -72,12 +78,15 @@ class controllerclient {
             const touriste = await Touristes.findById(id).select('-password'); // Exclure le mot de passe
     
             if (!touriste) {
-                return res.status(404).json({ message: 'Touriste non trouvé' });
+                res.status(404).json({ message: 'Touriste non trouvé' });
+
+                return
             }
     
             res.status(200).json(touriste);
         } catch (err) {
-            return res.status(403).json({ message: 'Token invalide' });
+            res.status(403).json({ message: 'Token invalide' });
+            return
         }
     }
     
@@ -260,14 +269,18 @@ async completerprofil(req: Request, res: Response): Promise<void> {
         }
     
         try {
-            const id = req.params.id;
+            const id = req.user;
             let touriste = await Touristes.findById(id);
+            
+            
     
             if (!touriste) {
-                res.status(404).json({ error: 'Chauffeur non trouvé' });
+                res.status(404).json({ error: 'client non trouvé' });
                 return;
             }
-    
+            if (req.body.historique_quiz && touriste.historique_quiz ) {
+                touriste.historique_quiz.push(req.body.historique_quiz);
+            }
             // Mise à jour sélective des champs
             const updateFields = {
                 // Champs textuels simples
@@ -284,7 +297,13 @@ async completerprofil(req: Request, res: Response): Promise<void> {
                 },
                 
                 // Champs additionnels
-                'info.Rib': req.body.info?.Rib ?? touriste.info.Rib
+                'info.Rib': req.body.info?.Rib ?? touriste.info.Rib,
+                // Ajoutez d'autres champs ici
+                'info.matricule_taxi': req.body.info?.matricule_taxi ?? touriste.info.matricule_taxi,
+                'preferences.langue': req.body.preferences?.langue ?? touriste.preferences.langue,
+                'preferences.langue_preferee': req.body.preferences?.langue_preferee ?? touriste.preferences.langue_preferee,
+                'preferences.centres_interet': req.body.preferences?.centres_interet ?? touriste.preferences.centres_interet,
+                'historique_quiz':  touriste.historique_quiz
             };
             
     
@@ -401,10 +420,14 @@ async authavecfacebook(req: Request, res: Response): Promise<void> {
         }
 
         try {
+            console.log(req.body);
+            
             const { email } = req.body.info;
             const touristeExistant = await Touristes.findOne({ 'info.email': email });
 
             if (touristeExistant) {
+                console.log();
+                
                 res.status(400).json({ error: 'Un touriste avec cet email existe déjà' });
                 return;
             }
@@ -433,6 +456,8 @@ async authavecfacebook(req: Request, res: Response): Promise<void> {
                 token
             });
         } catch (error) {
+            console.log(error);
+            
             res.status(500).json({ error: 'Erreur lors de la création du touriste' });
         }
     }

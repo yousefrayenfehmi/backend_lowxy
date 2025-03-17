@@ -318,6 +318,7 @@ async completerprofil(req: Request, res: Response): Promise<void> {
     }
 
     async verifyToken(req: Request, res: Response, next: NextFunction): Promise<void> {
+        
         if (mongoose.connection.readyState !== 1) {
             await dbConnection.getConnection().catch(error => {
                 return res.status(500).json({ error: 'Erreur de connexion à la base de données' });
