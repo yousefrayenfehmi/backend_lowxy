@@ -11,7 +11,7 @@ interface IPartenaire extends Document {
             motdepasse: string;
         };
         info_societe: {
-            numero_serie: string;
+            numero_serie?: string;
             domaines: string[];
             adresse: {
                 pays: string;

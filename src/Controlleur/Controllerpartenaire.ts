@@ -5,7 +5,7 @@ import Fonction from "../fonction/Fonction";
 import bcrypt from "bcryptjs";
 import crypto from 'crypto';
 import jwt from 'jsonwebtoken';
-import mongoose from 'mongoose';
+import mongoose, { Types } from 'mongoose';
 
 class ControllerPartenaire {
     async verifyToken(req: Request, res: Response, next: NextFunction): Promise<void> {
@@ -48,10 +48,9 @@ class ControllerPartenaire {
         }
 
         try {
-            
             const { email } = req.body.inforamtion.inforegester;
             const partenaireExistant = await Partenaires.findOne({ 'inforamtion.inforegester.email': email });
-
+            
             if (partenaireExistant) {
                 res.status(400).json({ error: 'Un partenaire avec cet email existe déjà' });
                 return;
@@ -80,6 +79,8 @@ class ControllerPartenaire {
             res.status(500).json({ error: 'Erreur lors de la création du partenaire' });
         } 
     }
+
+    
 
     async login(req: Request, res: Response): Promise<void> {
         if (mongoose.connection.readyState !== 1) {
@@ -473,6 +474,89 @@ class ControllerPartenaire {
             res.status(500).json({ error: 'Erreur lors de la suppression du partenaire' });
         } 
     }
+
+
+    async getPartenaireByToken(req: Request, res: Response): Promise<void> {
+        if (mongoose.connection.readyState !== 1) {
+            await dbConnection.getConnection().catch(error => {
+                res.status(500).json({ error: 'Erreur de connexion à la base de données' });
+                return;
+            });
+        }
+
+        const authHeader = req.headers['authorization'];
+        const token = authHeader && authHeader.split(' ')[1];
+
+        if (!token) {
+            res.status(401).json({ message: 'Token manquant' });
+            return;
+        }
+
+        try {
+            const decoded = jwt.verify(token as string, process.env.JWT_SECRET as string);
+            const { id } = decoded as { id: string };
+            const partenaire = await Partenaires.findById(id).select('-motdepasse');;
+            if (!partenaire) {
+                res.status(401).json({ message: 'Partenaire non trouvé' });
+                return;
+            }
+            res.status(200).json(partenaire);
+        } catch (err) {
+            res.status(403).json({ message: 'Token invalide' });
+        } 
+        
+    }
+
+    async changePassword(req: Request, res: Response): Promise<void> {
+        const authHeader = req.headers.authorization;
+        const token = authHeader && authHeader.split(' ')[1];
+    
+        if (!token) {
+            return res.status(401).json({ message: 'Token manquant' });
+        }
+    
+        const { currentPassword, newPassword } = req.body;
+    
+        if (!newPassword || newPassword.length < 8) {
+            return res.status(400).json({ message: 'New password must be at least 8 characters long' });
+        }
+    
+        try {
+
+            // Decode the token
+            const decoded = jwt.verify(token as string, process.env.JWT_SECRET as string);
+            const { id } = decoded as { id: string };
+    
+            // Ensure the id is a valid ObjectId
+            if (!Types.ObjectId.isValid(id)) {
+                return res.status(400).json({ message: 'Invalid user ID in token' });
+            }
+    
+            // Find the user by id, excluding the password
+            const user = await Partenaires.findById(id);
+    
+            if (!user) {
+                return res.status(404).json({ message: 'partenaire non trouvé' });
+            }
+    
+            // Check if the current password matches
+            const isMatch = await bcrypt.compare(currentPassword, user.inforamtion.inforegester.motdepasse);
+            if (!isMatch) {
+                return res.status(400).json({ message: 'Current password is incorrect' });
+            }
+    
+            // Hash the new password
+            const hashedPassword = await bcrypt.hash(newPassword, 10);
+            user.inforamtion.inforegester.motdepasse = hashedPassword;
+            await user.save();
+    
+            res.status(200).json({ message: 'Password changed successfully' });
+        } catch (error) {
+            console.error('Error:', error);
+            res.status(500).json({ message: 'An error occurred while changing the password' });
+        }
+    }
+    
 }
 
 export const ControllerpartenairInstance = new ControllerPartenaire();

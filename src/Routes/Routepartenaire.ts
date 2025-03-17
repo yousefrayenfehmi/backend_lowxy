@@ -19,6 +19,7 @@ const router: Router = express.Router();
         router.get('/partenaire/logout', ControllerpartenairInstance.logout);
         router.post('/partenaire-verifier-email',ControllerpartenairInstance.verifyToken, ControllerpartenairInstance.VeriffieEmail);
         router.get('/partenaire-reenvoyercode',ControllerpartenairInstance.verifyToken,ControllerpartenairInstance.renvoyeruncode);
+        router.post('/partenaire-change-password',  ControllerpartenairInstance.changePassword);
 
         //Crud avec token
         router.get('/partenaire/:id', ControllerpartenairInstance.verifyToken, ControllerpartenairInstance.getPartenaireById);
@@ -27,7 +28,8 @@ const router: Router = express.Router();
         router.get('/partenaires', ControllerpartenairInstance.verifyToken, ControllerpartenairInstance.getAllPartenaires);
         router.post('/completerpartenaire/:id',ControllerpartenairInstance.completerprofil);
         
-
+        //get User by token 
+        router.get('/partenaire-by-token', ControllerpartenairInstance.getPartenaireByToken);
     }
 
 }

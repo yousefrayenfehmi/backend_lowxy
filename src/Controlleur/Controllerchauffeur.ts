@@ -9,7 +9,7 @@ import passport from 'passport';
 import jwt from 'jsonwebtoken';
 import dotenv from 'dotenv';
 import path from 'path';
-import mongoose from 'mongoose';
+import mongoose, { Types } from 'mongoose';
 
 class controllerchauffeur {
     constructor() {
@@ -373,6 +373,7 @@ try {
                 // Champs additionnels
                 'info.Rib': req.body.info?.Rib ?? chauffeur.info.Rib,
             };
+            
     
             // Mise à jour partielle
             const updatedChauffeur = await Chauffeurs.findByIdAndUpdate(
@@ -566,6 +567,7 @@ try {
         }
     
         try {
+
             // Decode the token
             const decoded = jwt.verify(token as string, process.env.JWT_SECRET as string);
             const { id } = decoded as { id: string };
@@ -576,21 +578,21 @@ try {
             }
     
             // Find the user by id, excluding the password
-            const user = await Chauffeurs.findById(id).select('-password');
+            const user = await Chauffeurs.findById(id);
     
             if (!user) {
                 return res.status(404).json({ message: 'Chauffeur non trouvé' });
             }
     
             // Check if the current password matches
-            const isMatch = await bcrypt.compare(currentPassword, user.password);
+            const isMatch = await bcrypt.compare(currentPassword, user.info.motdepasse);
             if (!isMatch) {
                 return res.status(400).json({ message: 'Current password is incorrect' });
             }
     
             // Hash the new password
             const hashedPassword = await bcrypt.hash(newPassword, 10);
-            user.password = hashedPassword;
+            user.info.motdepasse = hashedPassword;
             await user.save();
     
             res.status(200).json({ message: 'Password changed successfully' });
@@ -617,14 +619,13 @@ try {
     
             const decoded = jwt.verify(token as string, process.env.JWT_SECRET as string);
             const { id } = decoded as { id: string };
+            const chauffeur = await Chauffeurs.findById(id).select('-motdepasse'); // Exclure le mot de passe
     
-            const touriste = await Chauffeurs.findById(id).select('-motdepasse'); // Exclure le mot de passe
-    
-            if (!touriste) {
+            if (!chauffeur) {
                 return res.status(404).json({ message: 'Chauffeur non trouvé' });
             }
     
-            res.status(200).json(touriste);
+            res.status(200).json(chauffeur);
         } catch (err) {
             return res.status(403).json({ message: 'Token invalide' });
         }

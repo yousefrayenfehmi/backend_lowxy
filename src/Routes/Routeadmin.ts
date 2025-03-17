@@ -22,7 +22,7 @@ class Routeadmin {
         router.post('/admin-verifier-email',controllerAdminInstance.verifyToken,controllerAdminInstance.VeriffieEmail)
         router.post('/admin/passwordoublier',controllerAdminInstance.forgetpassword)
         router.get("/admin/reset-password/:token", controllerAdminInstance.resetpassword);
-        router.get("logout", controllerAdminInstance.logout);
+        router.get("admin/logout", controllerAdminInstance.logout);
         router.get('/admin-reenvoyercode',controllerclientInstance.verifyToken,controllerAdminInstance.renvoyeruncode);
         
         //Crud
@@ -48,8 +48,8 @@ class Routeadmin {
         //crud partenaire
         router.get('admin/partenaires', controllerAdminInstance.verifyToken,ControllerpartenairInstance.getAllPartenaires);
         router.get('admin/partenaire/:id', controllerAdminInstance.verifyToken,ControllerpartenairInstance.getPartenaireById);
-        router.put('/partenaire/:id', controllerAdminInstance.verifyToken,ControllerpartenairInstance.updatePartenaire);
-        router.delete('/partenaire/:id', controllerAdminInstance.verifyToken,ControllerpartenairInstance.deletePartenaire);
+        router.put('admin/partenaire/:id', controllerAdminInstance.verifyToken,ControllerpartenairInstance.updatePartenaire);
+        router.delete('admin/partenaire/:id', controllerAdminInstance.verifyToken,ControllerpartenairInstance.deletePartenaire);
         //crud villeArticle sans token
         router.post('admin/villeArticle',controllerAdminInstance.verifyToken,controllerVilleArticleInstance.createVilleArticle);
         router.get('/admin/villeArticles',controllerAdminInstance.verifyToken,controllerVilleArticleInstance.getAllVilleArticles);
