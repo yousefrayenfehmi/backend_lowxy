@@ -52,13 +52,18 @@ class Routeadmin {
         router.delete('admin/partenaire/:id', controllerAdminInstance.verifyToken,ControllerpartenairInstance.deletePartenaire);
         //crud villeArticle sans token
         router.post('admin/villeArticle',controllerAdminInstance.verifyToken,controllerVilleArticleInstance.createVilleArticle);
-        router.get('/admin/villeArticles',controllerAdminInstance.verifyToken,controllerVilleArticleInstance.getAllVilleArticles);
         router.get('/admin/villeArticle/:id',controllerAdminInstance.verifyToken,controllerVilleArticleInstance.getVilleArticleById);
+        router.get('/admine/villeArticle/:id',controllerVilleArticleInstance.getVilleArticleById);
         router.put('/admin/villeArticle/:id',controllerAdminInstance.verifyToken,controllerVilleArticleInstance.updateVilleArticle);
+        router.put('/admine/villeArticle',controllerVilleArticleInstance.updateVilleArticle);
         router.delete('/admin/villeArticle/:id',controllerAdminInstance.verifyToken,controllerVilleArticleInstance.deleteVilleArticle);
+        router.delete('/admine/villeArticle/:id',controllerVilleArticleInstance.deleteVilleArticle);
+
+        router.post('/admine/villeArticle',controllerVilleArticleInstance.createVilleArticle);
+        router.get('/admine/villeArticles',controllerVilleArticleInstance.getAllVilleArticles);
         //crud question
-        router.post('admin/question',controllerAdminInstance.verifyToken,ControllerquestionBankInstance.createQuestion);
-        router.get('/admin/question',controllerAdminInstance.verifyToken,ControllerquestionBankInstance.getAllQuestions);
+        router.post('/admin/question',ControllerquestionBankInstance.createQuestion);
+        router.get('/question',ControllerquestionBankInstance.getAllQuestions);
         router.get('/admin/question/:id',controllerAdminInstance.verifyToken,ControllerquestionBankInstance.getQuestionById);
         router.put('/admin/question/:id',controllerAdminInstance.verifyToken,ControllerquestionBankInstance.updateQuestion);
         router.delete('/admin/question/:id',controllerAdminInstance.verifyToken,ControllerquestionBankInstance.deleteQuestion);

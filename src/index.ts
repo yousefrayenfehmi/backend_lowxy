@@ -2,6 +2,7 @@ import express, { Application } from 'express';
 import routetouriste from './Routes/Routetouriste';
 import Routechauffeur from './Routes/Routechauffeur';
 import Routeadmin from './Routes/Routeadmin';
+import Routepreferences from './Routes/RoutesPreferences';
 import Routepartenaire from './Routes/Routepartenaire';
 import Routesstrategy from './Routes/Routesgmailstrategy';
 import passport from 'passport';
@@ -54,6 +55,8 @@ app.use(routetouriste.getRouter());
 app.use(Routechauffeur.getRouter());
 app.use(Routeadmin.getRouter());
 app.use(Routepartenaire.getRouter());
+app.use(Routepreferences.getRouter());
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 
 app.listen(port, () => {    

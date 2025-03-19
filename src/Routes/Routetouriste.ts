@@ -37,6 +37,7 @@ class Routetouriste {
         router.post('/verifyToken',controllerclientInstance.verifyToken);
         //get User by token 
         router.get('/touriste-by-token', controllerclientInstance.getTouristeByToken);
+        router.post('/completertouriste',controllerclientInstance.verifyToken,controllerclientInstance.completerprofil);
 
 
 
