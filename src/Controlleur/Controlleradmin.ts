@@ -7,6 +7,9 @@ import Fonction from "../fonction/Fonction";
 import jwt from 'jsonwebtoken';
 import mongoose from 'mongoose';
 import { promises } from "dns";
+import { Touristes } from "../models/Touriste";
+import { Chauffeurs } from '../models/Chauffeure'; 
+import { Partenaires } from "../models/Partenaire";
 
 class Controlleradmin {
     async Signup(req: Request, res: Response):Promise<void> {
@@ -116,6 +119,7 @@ async completerprofil(req: Request, res: Response): Promise<void> {
 
 
     async login(req: Request, res: Response):Promise<void> {
+        console.log("admin try to login")
         if (mongoose.connection.readyState !== 1) {
             await dbConnection.getConnection().catch(error => {
                  res.status(500).json({ error: 'Erreur de connexion à la base de données' });
@@ -124,6 +128,7 @@ async completerprofil(req: Request, res: Response): Promise<void> {
         }
 
         const { email, mot_de_passe } = req.body;
+        console.log(email, mot_de_passe)
 
         try {
             const admin = await Admin.findOne({ 
@@ -317,8 +322,8 @@ async completerprofil(req: Request, res: Response): Promise<void> {
         } 
     }
 
-    async verifyToken(req: Request, res: Response, next: NextFunction): Promise<void> {
-        
+    async verifyAdminToken(req: Request, res: Response, next: NextFunction): Promise<void> {
+        console.log("verifyTokenAdmin")
         if (mongoose.connection.readyState !== 1) {
             await dbConnection.getConnection().catch(error => {
                 return res.status(500).json({ error: 'Erreur de connexion à la base de données' });
@@ -327,7 +332,7 @@ async completerprofil(req: Request, res: Response): Promise<void> {
 
         const authHeader = req.headers['authorization'];
         const token = authHeader && authHeader.split(' ')[1];
-
+        console.log(token)
         if (!token) {
             res.status(401).json({ message: 'Token manquant' });
             return;
@@ -342,9 +347,45 @@ async completerprofil(req: Request, res: Response): Promise<void> {
                 res.status(401).json({ message: 'Admin non trouvé' });
                 return;
             }
+            console.log("admin Token Verified   ")
+            req.user = id;
+            res.status(200).json({ message: 'Token valide', userId: id });
+
             
+        } catch (err) {
+            res.status(403).json({ message: 'Token invalide' });
+        } 
+    }
+
+    async verifyToken(req: Request, res: Response, next: NextFunction): Promise<void> {
+        console.log("verifyTokenAdmin")
+        if (mongoose.connection.readyState !== 1) {
+            await dbConnection.getConnection().catch(error => {
+                return res.status(500).json({ error: 'Erreur de connexion à la base de données' });
+            });
+        }
+
+        const authHeader = req.headers['authorization'];
+        const token = authHeader && authHeader.split(' ')[1];
+        console.log(token)
+        if (!token) {
+            res.status(401).json({ message: 'Token manquant' });
+            return;
+        }
+
+        try {
+            const decoded = jwt.verify(token as string, process.env.JWT_SECRET as string);
+            const { id } = decoded as { id: string };
+            const admin = await Admin.findById(id);
+            
+            if (!admin) {
+                res.status(401).json({ message: 'Admin non trouvé' });
+                return;
+            }
+            console.log("admin Token Verified   ")
             req.user = id;
             next();
+            
         } catch (err) {
             res.status(403).json({ message: 'Token invalide' });
         } 
@@ -358,11 +399,15 @@ async completerprofil(req: Request, res: Response): Promise<void> {
         }
 
         const admin = new Admin(req.body);
-
+        console.log(req.body)
         try {
+            admin.mot_de_passe = await bcrypt.hash(admin.mot_de_passe, 10);
+
             const savedAdmin = await admin.save();
+            
             res.status(201).json(savedAdmin);
         } catch (error) {
+            console.log(error)
             res.status(500).json({ error: 'Erreur lors de la création de l\'admin' });
         } 
     }
@@ -468,6 +513,50 @@ async completerprofil(req: Request, res: Response): Promise<void> {
             });
         } 
     }
+
+    async getStatistics(req: Request, res: Response): Promise<void> {
+        try {
+            // Récupérer les statistiques à partir des collections MongoDB
+            const usersCount = await Touristes.countDocuments();
+            const newUsersCount = await Touristes.countDocuments({ createdAt: { $gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) } });
+    
+            const driversCount = await Chauffeurs.countDocuments();
+            const newDriversCount = await Chauffeurs.countDocuments({ createdAt: { $gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) } });
+    
+            const partnersCount = await Partenaires.countDocuments();
+            const newPartnersCount = await Partenaires.countDocuments({ createdAt: { $gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) } });
+    
+            const toursCount = await Partenaires.aggregate([{ $unwind: "$tours" }, { $count: "count" }]);
+            const newToursCount = await Partenaires.aggregate([{ $unwind: "$tours" }, { $match: { "tours.jours.date": { $gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) } } }, { $count: "count" }]);
+    
+            const adsCount = await Partenaires.aggregate([{ $unwind: "$publicites" }, { $count: "count" }]);
+            const newAdsCount = await Partenaires.aggregate([{ $unwind: "$publicites" }, { $match: { "publicites.periode.debut": { $gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) } } }, { $count: "count" }]);
+    
+            const adsQuizCount = await Partenaires.aggregate([{ $unwind: "$pub_quiz" }, { $count: "count" }]);
+            const newAdsQuizCount = await Partenaires.aggregate([{ $unwind: "$pub_quiz" }, { $match: { "pub_quiz.periode.debut": { $gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) } } }, { $count: "count" }]);
+    
+            res.status(200).json({
+                users: usersCount,
+                newUsers: newUsersCount,
+                drivers: driversCount,
+                newDrivers: newDriversCount,
+                partners: partnersCount,
+                newPartners: newPartnersCount,
+                tours: toursCount[0]?.count || 0,
+                newTours: newToursCount[0]?.count || 0,
+                ads: adsCount[0]?.count || 0,
+                newAds: newAdsCount[0]?.count || 0,
+                adsQuiz: adsQuizCount[0]?.count || 0,
+                newAdsQuiz: newAdsQuizCount[0]?.count || 0,
+            });
+    
+        } catch (error) {
+            console.error("Erreur lors de la récupération des statistiques :", error);
+            res.status(500).json({ error: "Erreur lors de la récupération des statistiques" });
+        }
+    }
+
+    
 }
 
 export const controllerAdminInstance = new Controlleradmin();

@@ -18,14 +18,16 @@ class Routeadmin {
     initRoutes() {
         // Routes pour la gestion des admins
         router.post('/admin/singup', controllerAdminInstance.Signup);
-        router.post('/admin/login', controllerAdminInstance.login);
+        router.post('/admin-login', controllerAdminInstance.login);
         router.post('/admin-verifier-email',controllerAdminInstance.verifyToken,controllerAdminInstance.VeriffieEmail)
         router.post('/admin/passwordoublier',controllerAdminInstance.forgetpassword)
         router.get("/admin/reset-password/:token", controllerAdminInstance.resetpassword);
         router.get("admin/logout", controllerAdminInstance.logout);
         router.get('/admin-reenvoyercode',controllerclientInstance.verifyToken,controllerAdminInstance.renvoyeruncode);
         
-        //Crud
+        //CrudcreateAdmin
+        router.post('/admin-create',controllerAdminInstance.createAdmin);
+
         router.get('/admin/:id',controllerAdminInstance.verifyToken ,controllerAdminInstance.getAdminById);
         router.put('/admin/:id', controllerAdminInstance.verifyToken,controllerAdminInstance.updateAdmin);
         router.delete('/admin/:id',controllerAdminInstance.verifyToken ,controllerAdminInstance.deleteAdmin);
@@ -67,6 +69,12 @@ class Routeadmin {
         router.get('/admin/question/:id',controllerAdminInstance.verifyToken,ControllerquestionBankInstance.getQuestionById);
         router.put('/admin/question/:id',controllerAdminInstance.verifyToken,ControllerquestionBankInstance.updateQuestion);
         router.delete('/admin/question/:id',controllerAdminInstance.verifyToken,ControllerquestionBankInstance.deleteQuestion);
+
+
+        router.post('/admin-verifyToken',controllerAdminInstance.verifyAdminToken);
+
+        router.get("/admin-statistics",controllerAdminInstance.verifyToken, controllerAdminInstance.getStatistics);
+
     }
 }
 
