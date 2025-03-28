@@ -70,6 +70,7 @@ interface IPartenaire extends Document {
         }>;
     }>;
     pub_quiz: Array<{
+        _id: Types.ObjectId;
         bannieres: string[];
         videos: string[];
         call_to_action: string[];

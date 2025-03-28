@@ -20,7 +20,7 @@ const router: Router = express.Router();
         router.post('/partenaire-verifier-email',ControllerpartenairInstance.verifyToken, ControllerpartenairInstance.VeriffieEmail);
         router.get('/partenaire-reenvoyercode',ControllerpartenairInstance.verifyToken,ControllerpartenairInstance.renvoyeruncode);
         router.post('/partenaire-change-password',  ControllerpartenairInstance.changePassword);
-
+        router.post('/partenaire/publicite/:nom_societe',ControllerpartenairInstance.verifyToken,ControllerpartenairInstance.createPublicite)
         //Crud avec token
         router.get('/partenaire/:id', ControllerpartenairInstance.verifyToken, ControllerpartenairInstance.getPartenaireById);
         router.put('/partenaire/:id', ControllerpartenairInstance.verifyToken, ControllerpartenairInstance.updatePartenaire);

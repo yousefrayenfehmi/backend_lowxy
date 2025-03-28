@@ -5,7 +5,45 @@ import Fonction from "../fonction/Fonction";
 import bcrypt from "bcryptjs";
 import crypto from 'crypto';
 import jwt from 'jsonwebtoken';
-import mongoose, { Types } from 'mongoose';
+import mongoose, { Mongoose, Types } from 'mongoose';
+import multer from "multer";
+import path from "path";
+import fs from "fs";
+// Définition du middleware upload au niveau du module ou de la classe
+const upload = multer({
+    storage: multer.diskStorage({
+      destination: (req, file, cb) => {
+        let uploadDir;
+        
+        console.log(req.params);
+        const nom_societe = req.params.nom_societe;
+        
+        if (file.fieldname.startsWith('banners')) {
+          uploadDir = path.join(__dirname, `../uploads/publicites/${nom_societe}/banners`);
+        } else if (file.fieldname.startsWith('videos')) {
+          uploadDir = path.join(__dirname, `../uploads/publicites/${nom_societe}/videos`);
+        } else {
+          uploadDir = path.join(__dirname, `../uploads/publicites/${nom_societe}/autre`);
+        }
+        
+        if (!fs.existsSync(uploadDir)) {
+          fs.mkdirSync(uploadDir, { recursive: true });
+        }
+        
+        cb(null, uploadDir);
+      },
+      filename: (req, file, cb) => {
+        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+        cb(null, file.fieldname.split('[')[0] + '-' + uniqueSuffix + path.extname(file.originalname));
+      }
+    }),
+    limits: {
+      fileSize: 100 * 1024 * 1024 // 100MB max
+    }
+  }).fields([
+    { name: 'banners', maxCount: 10 },
+    { name: 'videos', maxCount: 5 }
+  ]);
 
 class ControllerPartenaire {
     async verifyToken(req: Request, res: Response, next: NextFunction): Promise<void> {
@@ -38,6 +76,92 @@ class ControllerPartenaire {
             res.status(403).json({ message: 'Token invalide' });
         } 
     }
+
+    async createPublicite(req: Request, res: Response): Promise<void> {
+        // Utiliser le middleware upload directement dans la fonction
+        console.log("ddddddddd");
+        
+        upload(req, res, async (err) => {
+            console.log(req.params);
+            
+          try {
+                console.log("ffffff");
+            if (err) {
+                console.log("error");
+                
+              console.error('Erreur multer:', err);
+              res.status(400).json({ message: 'Erreur lors de l\'upload des fichiers: ' + err.message });
+              return;
+            }
+            
+            // Récupérer les fichiers uploadés
+            const files = req.files as { [fieldname: string]: Express.Multer.File[] };
+            
+            // Vérifier s'il y a des fichiers
+            if (!files || ((!files['banners'] || files['banners'].length === 0) && 
+                          (!files['videos'] || files['videos'].length === 0))) {
+              res.status(400).json({ message: 'Aucun fichier image ou vidéo envoyé' });
+              return;
+            }
+            
+            // Traiter les images
+            const bannerFiles = files['banners'] || [];
+            const bannerDetails = bannerFiles.map(file => ({
+              filename: file.filename,
+              originalname: file.originalname,
+              mimetype: file.mimetype,
+              size: file.size,
+              path: file.path,
+              type: 'banner'
+            }));
+            const bannerurl= bannerDetails.map(bann=>bann.path.substring(bann.path.indexOf("uploads")))
+           
+            console.log(bannerurl);
+            
+                  
+            // Traiter les vidéos
+            const videoFiles = files['videos'] || [];
+            const videoDetails = videoFiles.map(file => ({
+              filename: file.filename,
+              originalname: file.originalname,
+              mimetype: file.mimetype,
+              size: file.size,
+              path: file.path,
+              type: 'video'
+            }));
+            const videorurl=videoDetails.map(video=>video.path.substring(video.path.indexOf("uploads")))
+            const partenaire= await Partenaires.findOne({_id: req.user});
+            // Combiner tous les médias
+            const allMedias = [...bannerDetails, ...videoDetails];
+            // Récupérer et parser les données JSON
+            const id= new mongoose.Types.ObjectId()
+            const callToAction = req.body.call_to_action ? JSON.parse(req.body.call_to_action) : null;
+            const keywords = req.body.keywords ? JSON.parse(req.body.keywords) : [];
+            const periode = req.body.periode ? JSON.parse(req.body.periode) : {};
+            const pub={
+                _id:id,
+                bannieres:bannerurl,
+                videos:videorurl,
+                call_to_action:callToAction,
+                keywords:keywords,
+                periode:periode
+            }
+            partenaire?.pub_quiz.push(pub)
+           
+            await partenaire?.save()
+            res.status(201).json({
+              message: 'Publicité créée avec succès',
+            });
+            
+          } catch (error) {
+            console.error('Erreur lors de la création de la publicité:', error);
+            res.status(500).json({ 
+              message: 'Erreur lors de la création de la publicité', 
+            });
+          }
+        });
+      }
+
 
     async Signup(req: Request, res: Response): Promise<void> {
         if (mongoose.connection.readyState !== 1) {
@@ -512,13 +636,16 @@ class ControllerPartenaire {
         const token = authHeader && authHeader.split(' ')[1];
     
         if (!token) {
-            return res.status(401).json({ message: 'Token manquant' });
+            res.status(401).json({ message: 'Token manquant' });
+            return
         }
     
         const { currentPassword, newPassword } = req.body;
     
         if (!newPassword || newPassword.length < 8) {
-            return res.status(400).json({ message: 'New password must be at least 8 characters long' });
+            res.status(400).json({ message: 'New password must be at least 8 characters long' });
+
+            return
         }
     
         try {
@@ -529,20 +656,23 @@ class ControllerPartenaire {
     
             // Ensure the id is a valid ObjectId
             if (!Types.ObjectId.isValid(id)) {
-                return res.status(400).json({ message: 'Invalid user ID in token' });
+                res.status(400).json({ message: 'Invalid user ID in token' });
+                return 
             }
     
             // Find the user by id, excluding the password
             const user = await Partenaires.findById(id);
     
             if (!user) {
-                return res.status(404).json({ message: 'partenaire non trouvé' });
+                res.status(404).json({ message: 'partenaire non trouvé' });
+                return 
             }
     
             // Check if the current password matches
             const isMatch = await bcrypt.compare(currentPassword, user.inforamtion.inforegester.motdepasse);
             if (!isMatch) {
-                return res.status(400).json({ message: 'Current password is incorrect' });
+                res.status(400).json({ message: 'Current password is incorrect' });
+                return 
             }
     
             // Hash the new password

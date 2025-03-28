@@ -89,6 +89,7 @@ const partenaireSchema = new Schema<IPartenaire>({
         }]
     }],
     pub_quiz: [{
+        
         bannieres: [String],
         videos: [String],
         call_to_action: [String],
