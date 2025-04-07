@@ -40,7 +40,10 @@ class Routetouriste {
         router.post('/completertouriste',controllerclientInstance.verifyToken,controllerclientInstance.completerprofil);
 
 
-
+        router.post('/verifyTokenTouriste', controllerclientInstance.verifyToken, (req, res) => {
+            console.log("verified")
+            res.status(200).json({ message: 'Token valide' });
+          });
           
     }
 

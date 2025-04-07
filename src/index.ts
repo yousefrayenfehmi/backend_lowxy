@@ -26,7 +26,7 @@ dotenv.config({ path: path.resolve(__dirname, '../.env') });
 
 
 app.use(cors({
-  origin: [process.env.FRONT_END_URL || 'http://localhost:4200', 'http://localhost:53009'], // Utilisez une variable d'environnement pour plus de flexibilité
+  origin: [process.env.FRONT_END_URL || 'http://localhost:4200', 'http://localhost:49717'], // Utilisez une variable d'environnement pour plus de flexibilité
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'], // Méthodes autorisées
   allowedHeaders: ['Content-Type', 'Authorization'], // Headers autorisés
   credentials: true, // Autorisez les cookies et autres credentials

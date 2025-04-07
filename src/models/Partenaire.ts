@@ -112,8 +112,7 @@ const partenaireSchema = new Schema<IPartenaire>({
 
 // Index
 partenaireSchema.index({ 'inforamtion.inforegester.email': 1 }, { unique: true });
-/*partenaireSchema.index({ 'inforamtion.info_societe.numero_serie': 1 }, { unique: true });
-*/
+
 // TTL Index
 partenaireSchema.index( { "resetPasswordTokenExpire": 1 }, { expireAfterSeconds: 3600 } );
 
