@@ -8,7 +8,11 @@ import jwt from 'jsonwebtoken';
 import mongoose, { Mongoose, Types } from 'mongoose';
 import multer from "multer";
 import path from "path";
-import fs from "fs";
+import fs, { stat } from "fs";
+import Stripe from 'stripe';
+import { ObjectId } from 'mongodb';
+
+const stripe = new Stripe('sk_test_51RAG0WQ4fzXaDh6qqaSa4kETsLitTt3nAHAnaPoodCOrgstRL0puvbFYG6KoruYmawEgL3o8NJ5DmywcApPS2NjH00FKdOaX9O');
 // Définition du middleware upload au niveau du module ou de la classe
 const upload = multer({
     storage: multer.diskStorage({
@@ -67,6 +71,7 @@ class ControllerPartenaire {
             const { id } = decoded as { id: string };
             const partenaire = await Partenaires.findById(id);
             if (!partenaire) {
+                
                 res.status(401).json({ message: 'Partenaire non trouvé' });
                 return;
             }
@@ -77,18 +82,13 @@ class ControllerPartenaire {
         } 
     }
 
-    async createPublicite(req: Request, res: Response): Promise<void> {
-        // Utiliser le middleware upload directement dans la fonction
-        console.log("ddddddddd");
+    async createPubliciteetpay(req: Request, res: Response): Promise<void> {
         
         upload(req, res, async (err) => {
-            console.log(req.params);
-            
+          
           try {
-                console.log("ffffff");
             if (err) {
-                console.log("error");
-                
+              console.log("error");
               console.error('Erreur multer:', err);
               res.status(400).json({ message: 'Erreur lors de l\'upload des fichiers: ' + err.message });
               return;
@@ -114,11 +114,10 @@ class ControllerPartenaire {
               path: file.path,
               type: 'banner'
             }));
-            const bannerurl= bannerDetails.map(bann=>bann.path.substring(bann.path.indexOf("uploads")))
-           
+            const bannerurl = bannerDetails.map(bann => bann.path.substring(bann.path.indexOf("uploads")));
+            
             console.log(bannerurl);
             
-                  
             // Traiter les vidéos
             const videoFiles = files['videos'] || [];
             const videoDetails = videoFiles.map(file => ({
@@ -129,33 +128,81 @@ class ControllerPartenaire {
               path: file.path,
               type: 'video'
             }));
-            const videorurl=videoDetails.map(video=>video.path.substring(video.path.indexOf("uploads")))
-            const partenaire= await Partenaires.findOne({_id: req.user});
+            const videorurl = videoDetails.map(video => video.path.substring(video.path.indexOf("uploads")));
+            const partenaire = await Partenaires.findOne({_id: req.user});
+            
             // Combiner tous les médias
             const allMedias = [...bannerDetails, ...videoDetails];
+            
             // Récupérer et parser les données JSON
-            const id= new mongoose.Types.ObjectId()
+            const id = new mongoose.Types.ObjectId();
             const callToAction = req.body.call_to_action ? JSON.parse(req.body.call_to_action) : null;
             const keywords = req.body.keywords ? JSON.parse(req.body.keywords) : [];
             const periode = req.body.periode ? JSON.parse(req.body.periode) : {};
-            const pub={
-                _id:id,
-                bannieres:bannerurl,
-                videos:videorurl,
-                call_to_action:callToAction,
-                keywords:keywords,
-                periode:periode
+            const Budget_totale = req.body.Budget_totale ? JSON.parse(req.body.Budget_totale) : null;
+            
+            const pub = {
+              _id: id,
+              bannieres: bannerurl,
+              videos: videorurl,
+              call_to_action: callToAction,
+              keywords: keywords,
+              periode: periode,
+              Budget_totale: Budget_totale,
+              statu: 'En attente de validation',
+              impressions: 0,
+              clicks: 0
+            };
+            
+            // INTÉGRATION STRIPE ICI
+            try {
+              
+              const budgetAmount = typeof Budget_totale === 'number' ? Budget_totale : parseFloat(Budget_totale || '0');
+              
+              
+              
+              const session = await stripe.checkout.sessions.create({
+                payment_method_types: ['card'],
+                line_items: [
+                  {
+                    price_data: {
+                      currency: 'eur',
+                      product_data: {
+                        name: `Publicité ${req.params.nom_societe || ''}`,
+                        description: 'Campagne publicitaire',
+                      },
+                      unit_amount: Math.round(budgetAmount * 100), // Conversion en centimes et arrondi
+                    },
+                    quantity: 1,
+                  },
+                ],
+                mode: 'payment',
+                success_url: `${process.env.FRONTEND_URL || 'http://localhost:4200'}/paiment_sucesses/${pub._id}?data=${encodeURIComponent(JSON.stringify(pub))}&id=${id}&mount=${budgetAmount}`,
+                cancel_url: `${process.env.FRONTEND_URL || 'http://localhost:4200'}/paiment_echouee/${pub._id}`,
+                
+              });
+              console.log(session);
+              
+              
+             
+              
+              // Retourner l'ID de la session pour redirection
+              res.status(201).json({
+                message: 'Publicité créée avec succès',
+                id: session.id,
+                publicite_id: id
+              });
+              
+            } catch (stripeError) {
+              console.error('Erreur Stripe:', stripeError);
+              res.status(400).json({ 
+                message: 'Erreur lors de la création du paiement',
+              });
             }
-            partenaire?.pub_quiz.push(pub)
-           
-            await partenaire?.save()
-            res.status(201).json({
-              message: 'Publicité créée avec succès',
-            });
             
           } catch (error) {
             console.error('Erreur lors de la création de la publicité:', error);
-            res.status(500).json({ 
+            res.status(500).json({
               message: 'Erreur lors de la création de la publicité', 
             });
           }
@@ -163,6 +210,74 @@ class ControllerPartenaire {
       }
 
 
+    
+async Pubsauvgarde(req: Request, res: Response): Promise<void> {
+    if (mongoose.connection.readyState !== 1) {
+        await dbConnection.getConnection().catch(error => {
+            res.status(500).json({ error: 'Erreur de connexion à la base de données' });
+            return;
+        });
+    }
+
+    try {
+        console.log('hhhhhhhhhhhhhhhhhhhh');
+        
+        const id = req.user;
+        const data =req.body.data;
+        console.log("data"+data);
+        
+  // Ou option 2: Passez l'objet directement (sans concaténation)
+        
+        const pub = await Partenaires.findOne({'_id': id});
+        pub?.pub_quiz.push(data);
+        await pub?.save();
+        res.status(200).json(pub);
+    } catch (error) {
+        console.log(error);
+        
+        res.status(500).json({ error: error });
+    }
+}
+async pubetatchanger(req: Request, res: Response): Promise<void> {
+    if (mongoose.connection.readyState !== 1) {
+        await dbConnection.getConnection().catch(error => {
+            res.status(500).json({ error: 'Erreur de connexion à la base de données' });
+            return;
+        });
+    }
+
+    try {    
+        const id = req.params.id;
+        const objectIdFromString = new ObjectId(id);
+        const pub = await Partenaires.findOne({'pub_quiz._id': id});
+
+        if (pub) {
+             pub.pub_quiz.filter(quiz => {
+              // Convert both to strings before comparing
+              if(quiz._id.toString() === objectIdFromString.toString()){
+                if(quiz.statu === 'En attente de validation'){
+                    quiz.statu = 'Active'}
+                else if(quiz.statu === 'Active'){
+                    quiz.statu = 'Pause'
+                }
+                else if(quiz.statu === 'Pause'){
+                    quiz.statu = 'Active'
+                }    
+              } 
+            });
+            await pub.save();
+        }
+        if (!pub) {
+            res.status(404).json({ error: 'Publicité non trouvée' });
+            return;
+        }
+        res.status(200).json(pub);
+    } catch (error) {
+        console.log(error);
+        
+        res.status(500).json({ error: error });
+    }
+}
     async Signup(req: Request, res: Response): Promise<void> {
         if (mongoose.connection.readyState !== 1) {
             await dbConnection.getConnection().catch(error => {

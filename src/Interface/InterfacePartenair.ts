@@ -79,6 +79,10 @@ interface IPartenaire extends Document {
             debut: Date;
             fin: Date;
         };
+        statu: string;
+        Budget_totale: number;
+        impressions: number;
+        clicks: number;
     }>;
     securites: {
         code?: string;

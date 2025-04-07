@@ -20,14 +20,17 @@ const router: Router = express.Router();
         router.post('/partenaire-verifier-email',ControllerpartenairInstance.verifyToken, ControllerpartenairInstance.VeriffieEmail);
         router.get('/partenaire-reenvoyercode',ControllerpartenairInstance.verifyToken,ControllerpartenairInstance.renvoyeruncode);
         router.post('/partenaire-change-password',  ControllerpartenairInstance.changePassword);
-        router.post('/partenaire/publicite/:nom_societe',ControllerpartenairInstance.verifyToken,ControllerpartenairInstance.createPublicite)
+        router.post('/partenaire/publicite/:nom_societe',ControllerpartenairInstance.verifyToken,ControllerpartenairInstance.createPubliciteetpay)
         //Crud avec token
         router.get('/partenaire/:id', ControllerpartenairInstance.verifyToken, ControllerpartenairInstance.getPartenaireById);
         router.put('/partenaire/:id', ControllerpartenairInstance.verifyToken, ControllerpartenairInstance.updatePartenaire);
         router.delete('/partenaire/:id', ControllerpartenairInstance.verifyToken, ControllerpartenairInstance.deletePartenaire);
         router.get('/partenaires', ControllerpartenairInstance.verifyToken, ControllerpartenairInstance.getAllPartenaires);
         router.post('/completerpartenaire/:id',ControllerpartenairInstance.completerprofil);
-        
+        router.get('/partenaire/publicitaire/:id',ControllerpartenairInstance.verifyToken,ControllerpartenairInstance.pubetatchanger);
+
+        router.post('/partenaire/publicite',ControllerpartenairInstance.verifyToken,ControllerpartenairInstance.Pubsauvgarde);
+
         //get User by token 
         router.get('/partenaire-by-token', ControllerpartenairInstance.getPartenaireByToken);
     }

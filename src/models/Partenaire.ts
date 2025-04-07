@@ -93,12 +93,15 @@ const partenaireSchema = new Schema<IPartenaire>({
         bannieres: [String],
         videos: [String],
         call_to_action: [String],
-        keywords: [
-            String],
+        keywords: [Array],
         periode: {
             debut: Date,
             fin: Date
-        }
+        },
+        Budget_totale:{type: Number},
+        statu: {type: String,required: true},
+        impressions: {type: Number},
+        clicks: {type: Number},
     }],
     securites: {
         code: { type: String, required: false },

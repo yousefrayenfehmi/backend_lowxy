@@ -109,8 +109,11 @@ class controllerchauffeur {
                 return;
         }
         else if(chauffeur && chauffeur.info.strategy==='google'){
+            console.log('hetha chauffeur');
+            
             const token=Fonction.createtokenetcookies(res, chauffeur._id);
             res.status(201).json({ success: true, chauffeur: chauffeur, token: token });
+            return 
         }
 
         const chauffeure = new Chauffeurs(req.body);
@@ -157,6 +160,7 @@ try {
     else if(chauffeur && chauffeur.info.strategy==='facebook'){
         const token=Fonction.createtokenetcookies(res, chauffeur._id);
         res.status(201).json({ success: true, chauffeur: chauffeur, token: token });
+        return 
     }
     const chauffeure = new Chauffeurs(req.body);
     chauffeure.info.strategy="facebook";
