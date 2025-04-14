@@ -48,7 +48,8 @@ const partenaireSchema = new Schema<IPartenaire>({
             depart: String,
             arrivee: String,
             plan: String
-        },
+        }, 
+        images: [String],
         jours: [{
             date: Date,
             depart: String,
@@ -57,6 +58,7 @@ const partenaireSchema = new Schema<IPartenaire>({
                 enfants: Number
             },
             prix: Number,
+            
             supplements: [String]
         }],
         reservations: [{

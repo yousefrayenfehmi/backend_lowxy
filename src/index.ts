@@ -5,6 +5,8 @@ import Routeadmin from './Routes/Routeadmin';
 import Routepreferences from './Routes/RoutesPreferences';
 import Routepartenaire from './Routes/Routepartenaire';
 import Routesstrategy from './Routes/Routesgmailstrategy';
+import RouteTour from './Routes/tourRoute'; // adjust the path as needed
+
 import passport from 'passport';
 import session from 'express-session';
 import dotenv from 'dotenv';
@@ -55,7 +57,9 @@ app.use(routetouriste.getRouter());
 app.use(Routechauffeur.getRouter());
 app.use(Routeadmin.getRouter());
 app.use(Routepartenaire.getRouter());
+app.use(RouteTour.getRouter());
 app.use(Routepreferences.getRouter());
+
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 
