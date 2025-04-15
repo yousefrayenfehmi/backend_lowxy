@@ -1,6 +1,6 @@
 import express, { Router, Request, Response, NextFunction }  from "express";
 import { controllerAdminInstance } from "../Controlleur/Controlleradmin"; 
-import verifyToken from "../midlleware/VerifierToken";
+import { VerifierTokenInstance } from "../midlleware/VerifierToken";
 import { controllerclientInstance } from "../Controlleur/Controllerclient";
 import { ControllerpartenairInstance } from "../Controlleur/Controllerpartenaire";
 import { controllerchauffeurInstance } from "../Controlleur/Controllerchauffeur";
@@ -64,6 +64,11 @@ class Routeadmin {
         router.post('/admine/villeArticle',controllerVilleArticleInstance.createVilleArticle);
         router.get('/admine/villeArticles',controllerVilleArticleInstance.getAllVilleArticles);
         //crud question
+        router.post('/admin/question',ControllerquestionBankInstance.createQuestion);
+        router.get('/question',ControllerquestionBankInstance.getAllQuestions);
+        router.get('/admin/question/:id',controllerAdminInstance.verifyToken,ControllerquestionBankInstance.getQuestionById);
+        router.put('/admin/question/:id',controllerAdminInstance.verifyToken,ControllerquestionBankInstance.updateQuestion);
+        router.delete('/admin/question/:id',controllerAdminInstance.verifyToken,ControllerquestionBankInstance.deleteQuestion);
         router.post('/admin/question',controllerAdminInstance.verifyToken,ControllerquestionBankInstance.createQuestion);
         router.get('/admin-all-questions',controllerAdminInstance.verifyToken,ControllerquestionBankInstance.getAllQuestions);
         router.get('/adminGetQuestion/:id',controllerAdminInstance.verifyToken,ControllerquestionBankInstance.getQuestionById);

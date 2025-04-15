@@ -240,13 +240,15 @@ class controllerclient {
         const token = authHeader && authHeader.split(' ')[1];
     
         if (!token) {
-            return res.status(401).json({ message: 'Token manquant' });
+             res.status(401).json({ message: 'Token manquant' })
+             return
         }
     
         const { currentPassword, newPassword } = req.body;
     
         if (!newPassword || newPassword.length < 8) {
-            return res.status(400).json({ message: 'New password must be at least 8 characters long' });
+             res.status(400).json({ message: 'New password must be at least 8 characters long' });
+             return
         }
     
         try {
@@ -256,20 +258,23 @@ class controllerclient {
     
             // Ensure the id is a valid ObjectId
             if (!Types.ObjectId.isValid(id)) {
-                return res.status(400).json({ message: 'Invalid user ID in token' });
+                 res.status(400).json({ message: 'Invalid user ID in token' });
+                 return
             }
     
             // Find the user by id, excluding the password
             const user = await Touristes.findById(id);
     
             if (!user) {
-                return res.status(404).json({ message: 'Touriste non trouvé' });
+                 res.status(404).json({ message: 'Touriste non trouvé' });
+                 return
             }
     
             // Check if the current password matches
             const isMatch = await bcrypt.compare(currentPassword, user.info.motdepasse);
             if (!isMatch) {
-                return res.status(400).json({ message: 'Current password is incorrect' });
+                 res.status(400).json({ message: 'Current password is incorrect' });
+                 return
             }
     
             // Hash the new password
@@ -664,6 +669,41 @@ async authavecfacebook(req: Request, res: Response): Promise<void> {
             res.status(500).json({ error: 'Erreur lors de la suppression du touriste' });
         }
     }
+
+
+
+    async getTouristebymoth(req: Request, res: Response): Promise<void> {
+        if (mongoose.connection.readyState !== 1) {
+            try {
+                await dbConnection.getConnection();
+            } catch (error) {
+                res.status(500).json({ error: 'Erreur de connexion à la base de données' });
+                return;
+            }
+        }
+
+        try {
+            //recuperer moth de systeme
+
+            const moth=new Date().getMonth()+1;
+            const year=new Date().getFullYear();
+            const precedentmoth=new Date().getMonth()
+            console.log(precedentmoth);
+            ;
+            
+            const touriste = await Touristes.find({ 'createdAt': { $gte: new Date(year, moth - 1, 1), $lt: new Date(year, moth, 1) } });
+            const touristeprecedent = await Touristes.find({ 'createdAt': { $gte: new Date(year, precedentmoth - 1, 1), $lt: new Date(year, precedentmoth, 1) } });
+            res.status(200).json({ touriste: touriste.length, touristeprecedent: touristeprecedent.length });
+        }
+        catch (error) {
+            res.status(500).json({ error: 'Erreur lors de la récupération du touriste' });
+        }
+    }
+
+
+
+
+
 }
 
 export const controllerclientInstance = new controllerclient();

@@ -5,7 +5,55 @@ import Fonction from "../fonction/Fonction";
 import bcrypt from "bcryptjs";
 import crypto from 'crypto';
 import jwt from 'jsonwebtoken';
-import mongoose, { Types } from 'mongoose';
+import mongoose, { Mongoose, Types } from 'mongoose';
+import multer from "multer";
+import path from "path";
+import fs, { stat } from "fs";
+import Stripe from 'stripe';
+import { ObjectId } from 'mongodb';
+
+const stripe = new Stripe('sk_test_51RAG0WQ4fzXaDh6qqaSa4kETsLitTt3nAHAnaPoodCOrgstRL0puvbFYG6KoruYmawEgL3o8NJ5DmywcApPS2NjH00FKdOaX9O');
+// Définition du middleware upload au niveau du module ou de la classe
+export const upload = multer({
+    storage: multer.diskStorage({
+      destination: (req, file, cb) => {
+        let uploadDir;
+        
+        const nom_societe = req.params.nom_societe;
+        
+        if (file.fieldname.startsWith('banners')) {
+          uploadDir = path.join(__dirname, `../uploads/publicites/${nom_societe}/banners`);
+        } else if (file.fieldname.startsWith('videos')) {
+          uploadDir = path.join(__dirname, `../uploads/publicites/${nom_societe}/videos`);
+        } else if (file.fieldname.startsWith('covering')){
+          uploadDir = path.join(__dirname, `../uploads/covering/${nom_societe}/image`);
+        }
+        else {
+            uploadDir = path.join(__dirname, `../uploads/publicites/${nom_societe}/autres`);
+          }
+        
+        if (!fs.existsSync(uploadDir)) {
+          fs.mkdirSync(uploadDir, { recursive: true });
+        }
+        
+        cb(null, uploadDir);
+      },
+      filename: (req, file, cb) => {
+        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+        cb(null, file.fieldname.split('[')[0] + '-' + uniqueSuffix + path.extname(file.originalname));
+      }
+    }),
+    limits: {
+      fileSize: 100 * 1024 * 1024 // 100MB max
+    }
+  }).fields([
+    { name: 'banners', maxCount: 3 },
+    { name: 'videos', maxCount: 3},
+    {name:'covering',maxCount:1}
+  ]);
+
+
+  
 
 class ControllerPartenaire {
     async verifyToken(req: Request, res: Response, next: NextFunction): Promise<void> {
@@ -29,6 +77,7 @@ class ControllerPartenaire {
             const { id } = decoded as { id: string };
             const partenaire = await Partenaires.findById(id);
             if (!partenaire) {
+                
                 res.status(401).json({ message: 'Partenaire non trouvé' });
                 return;
             }
@@ -39,6 +88,282 @@ class ControllerPartenaire {
         } 
     }
 
+    createcovering(req: Request, res: Response): void {
+        upload(req, res, async (err) => {
+
+
+            if (err) {
+                console.error('Erreur multer:', err);
+                res.status(400).json({ message: 'Erreur lors de l\'upload des fichiers: ' + err.message });
+                return;
+              }
+              //recuperer les fichiers uploadés
+              const files = req.files as { [fieldname: string]: Express.Multer.File[] };
+              //verifier s'il y a des fichiers
+              if (!files || (!files['covering'] || files['covering'].length === 0)) {
+                res.status(400).json({ message: 'Aucun fichier image ou vidéo envoyé' });
+                return;
+              }
+              console.log(req.body);
+              
+              //Traiter les images
+              const bannerFiles = files['covering'] || [];
+              const path=bannerFiles[0].path;
+              const url=  path.substring(path.indexOf('uploads'));
+              const covring={
+                _id: new Types.ObjectId(),
+                image:url,
+                modele_voiture: req.body.model_voiture,
+                type_covering: req.body.type_covering,
+                nombre_taxi: req.body.nombre_de_taxi,
+                nombre_jour: req.body.nombre_de_jour,
+                prix: req.body.prix,
+              }
+
+
+
+              const session = await stripe.checkout.sessions.create({
+                payment_method_types: ['card'],
+                line_items: [
+                  {
+                    price_data: {
+                      currency: 'eur',
+                      product_data: {
+                        name: `Publicité ${req.params.nom_societe || ''}`,
+                        description: 'Campagne publicitaire',
+                      },
+                      unit_amount:  Math.round(covring.prix * 100), // Conversion en centimes et arrondi
+                    },
+                    quantity: 1,
+                  },
+                ],
+                mode: 'payment',
+                success_url: `${process.env.FRONTEND_URL || 'http://localhost:4200'}/paiment_sucesses/${covring._id}?data=${encodeURIComponent(JSON.stringify(covring))}&type=covering`,
+                cancel_url: `${process.env.FRONTEND_URL || 'http://localhost:4200'}/paiment_echouee/${covring._id}?type=covering`,
+              });
+
+              res.status(200).json({ id: session.id });
+        })
+         
+       
+    
+    }
+
+    async createPubliciteetpay(req: Request, res: Response): Promise<void> {
+        
+        upload(req, res, async (err) => {
+          
+          try {
+            if (err) {
+              console.log("error");
+              console.error('Erreur multer:', err);
+              res.status(400).json({ message: 'Erreur lors de l\'upload des fichiers: ' + err.message });
+              return;
+            }
+            
+            // Récupérer les fichiers uploadés
+            const files = req.files as { [fieldname: string]: Express.Multer.File[] };
+            
+            // Vérifier s'il y a des fichiers
+            if (!files || ((!files['banners'] || files['banners'].length === 0) && 
+                          (!files['videos'] || files['videos'].length === 0))) {
+              res.status(400).json({ message: 'Aucun fichier image ou vidéo envoyé' });
+              return;
+            }
+            
+            // Traiter les images
+            const bannerFiles = files['banners'] || [];
+            const bannerDetails = bannerFiles.map(file => ({
+              filename: file.filename,
+              originalname: file.originalname,
+              mimetype: file.mimetype,
+              size: file.size,
+              path: file.path,
+              type: 'banner'
+            }));
+            const bannerurl = bannerDetails.map(bann => bann.path.substring(bann.path.indexOf("uploads")));
+            
+            console.log(bannerurl);
+            
+            // Traiter les vidéos
+            const videoFiles = files['videos'] || [];
+            const videoDetails = videoFiles.map(file => ({
+              filename: file.filename,
+              originalname: file.originalname,
+              mimetype: file.mimetype,
+              size: file.size,
+              path: file.path,
+              type: 'video'
+            }));
+            const videorurl = videoDetails.map(video => video.path.substring(video.path.indexOf("uploads")));
+            const partenaire = await Partenaires.findOne({_id: req.user});
+            
+            // Combiner tous les médias
+            const allMedias = [...bannerDetails, ...videoDetails];
+            
+            // Récupérer et parser les données JSON
+            const id = new mongoose.Types.ObjectId();
+            const callToAction = req.body.call_to_action ? JSON.parse(req.body.call_to_action) : null;
+            const keywords = req.body.keywords ? JSON.parse(req.body.keywords) : [];
+            const periode = req.body.periode ? JSON.parse(req.body.periode) : {};
+            const Budget_totale = req.body.Budget_totale ? JSON.parse(req.body.Budget_totale) : null;
+            
+            const pub = {
+              _id: id,
+              bannieres: bannerurl,
+              videos: videorurl,
+              call_to_action: callToAction,
+              keywords: keywords,
+              periode: periode,
+              Budget_totale: Budget_totale,
+              statu: 'En attente de validation',
+              impressions: 0,
+              clicks: 0
+            };
+            
+            // INTÉGRATION STRIPE ICI
+            try {
+              
+              const budgetAmount = typeof Budget_totale === 'number' ? Budget_totale : parseFloat(Budget_totale || '0');
+              
+              
+              
+              const session = await stripe.checkout.sessions.create({
+                payment_method_types: ['card'],
+                line_items: [
+                  {
+                    price_data: {
+                      currency: 'eur',
+                      product_data: {
+                        name: `Publicité ${req.params.nom_societe || ''}`,
+                        description: 'Campagne publicitaire',
+                      },
+                      unit_amount: Math.round(budgetAmount * 100), // Conversion en centimes et arrondi
+                    },
+                    quantity: 1,
+                  },
+                ],
+                mode: 'payment',
+                success_url: `${process.env.FRONTEND_URL || 'http://localhost:4200'}/paiment_sucesses/${pub._id}?data=${encodeURIComponent(JSON.stringify(pub))}&type=publicite`,
+                cancel_url: `${process.env.FRONTEND_URL || 'http://localhost:4200'}/paiment_echouee/${pub._id}?type=publicite`,
+                
+              });
+              console.log(session);
+              
+              
+             
+              
+              // Retourner l'ID de la session pour redirection
+              res.status(201).json({
+                message: 'Publicité créée avec succès',
+                id: session.id,
+                publicite_id: id
+              });
+              
+            } catch (stripeError) {
+              console.error('Erreur Stripe:', stripeError);
+              res.status(400).json({ 
+                message: 'Erreur lors de la création du paiement',
+              });
+            }
+            
+          } catch (error) {
+            console.error('Erreur lors de la création de la publicité:', error);
+            res.status(500).json({
+              message: 'Erreur lors de la création de la publicité', 
+            });
+          }
+        });
+      }
+
+
+async covringsave(req: Request, res: Response){
+    if (mongoose.connection.readyState !== 1) {
+        await dbConnection.getConnection().catch(error => {
+            res.status(500).json({ error: 'Erreur de connexion à la base de données' });
+            return;
+        });
+    }
+    try {
+        const id = req.user;
+        const data =req.body.data;
+        console.log("data"+data);
+        const partenaire = await Partenaires.findOne({'_id': id});
+        partenaire?.covering_ads.push(data);
+        await partenaire?.save();
+        res.status(200).json(partenaire);
+    } catch (error) {
+        console.log(error);
+        res.status(500).json({ error: error });
+}
+}
+async Pubsauvgarde(req: Request, res: Response): Promise<void> {
+    if (mongoose.connection.readyState !== 1) {
+        await dbConnection.getConnection().catch(error => {
+            res.status(500).json({ error: 'Erreur de connexion à la base de données' });
+            return;
+        });
+    }
+
+    try {
+        console.log('hhhhhhhhhhhhhhhhhhhh');
+        
+        const id = req.user;
+        const data =req.body.data;
+        console.log("data"+data);
+        
+  // Ou option 2: Passez l'objet directement (sans concaténation)
+        
+        const pub = await Partenaires.findOne({'_id': id});
+        pub?.pub_quiz.push(data);
+        await pub?.save();
+        res.status(200).json(pub);
+    } catch (error) {
+        console.log(error);
+        
+        res.status(500).json({ error: error });
+    }
+}
+async pubetatchanger(req: Request, res: Response): Promise<void> {
+    if (mongoose.connection.readyState !== 1) {
+        await dbConnection.getConnection().catch(error => {
+            res.status(500).json({ error: 'Erreur de connexion à la base de données' });
+            return;
+        });
+    }
+
+    try {    
+        const id = req.params.id;
+        const objectIdFromString = new ObjectId(id);
+        const pub = await Partenaires.findOne({'pub_quiz._id': id});
+
+        if (pub) {
+             pub.pub_quiz.filter(quiz => {
+              // Convert both to strings before comparing
+              if(quiz._id.toString() === objectIdFromString.toString()){
+                if(quiz.statu === 'En attente de validation'){
+                    quiz.statu = 'Active'}
+                else if(quiz.statu === 'Active'){
+                    quiz.statu = 'Pause'
+                }
+                else if(quiz.statu === 'Pause'){
+                    quiz.statu = 'Active'
+                }    
+              } 
+            });
+            await pub.save();
+        }
+        if (!pub) {
+            res.status(404).json({ error: 'Publicité non trouvée' });
+            return;
+        }
+        res.status(200).json(pub);
+    } catch (error) {
+        console.log(error);
+        
+        res.status(500).json({ error: error });
+    }
+}
     async Signup(req: Request, res: Response): Promise<void> {
         if (mongoose.connection.readyState !== 1) {
             await dbConnection.getConnection().catch(error => {
@@ -512,13 +837,16 @@ class ControllerPartenaire {
         const token = authHeader && authHeader.split(' ')[1];
     
         if (!token) {
-            return res.status(401).json({ message: 'Token manquant' });
+            res.status(401).json({ message: 'Token manquant' });
+            return
         }
     
         const { currentPassword, newPassword } = req.body;
     
         if (!newPassword || newPassword.length < 8) {
-            return res.status(400).json({ message: 'New password must be at least 8 characters long' });
+            res.status(400).json({ message: 'New password must be at least 8 characters long' });
+
+            return
         }
     
         try {
@@ -529,20 +857,23 @@ class ControllerPartenaire {
     
             // Ensure the id is a valid ObjectId
             if (!Types.ObjectId.isValid(id)) {
-                return res.status(400).json({ message: 'Invalid user ID in token' });
+                res.status(400).json({ message: 'Invalid user ID in token' });
+                return 
             }
     
             // Find the user by id, excluding the password
             const user = await Partenaires.findById(id);
     
             if (!user) {
-                return res.status(404).json({ message: 'partenaire non trouvé' });
+                res.status(404).json({ message: 'partenaire non trouvé' });
+                return 
             }
     
             // Check if the current password matches
             const isMatch = await bcrypt.compare(currentPassword, user.inforamtion.inforegester.motdepasse);
             if (!isMatch) {
-                return res.status(400).json({ message: 'Current password is incorrect' });
+                res.status(400).json({ message: 'Current password is incorrect' });
+                return 
             }
     
             // Hash the new password

@@ -108,19 +108,21 @@ class ChauffeurDocumentController {
     }
 
     // Récupérer un document
-    getDocument = async (req: Request, res: Response) => {
+    getDocument = async (req: Request, res: Response):Promise<void> => {
         try {
             const { id, docType } = req.params;
             const chauffeur = await Chauffeurs.findById(id);
     
             if (!chauffeur) {
-                return res.status(404).json({ error: 'Chauffeur non trouvé' });
+                res.status(404).json({ error: 'Chauffeur non trouvé' });
+                return 
             }
     
             const documentPath = chauffeur.documents[docType as 'permis' | 'assurance' | 'carte_taxi'].imagePath;
     
             if (!documentPath) {
-                return res.status(404).json({ error: 'Document non trouvé' });
+                res.status(404).json({ error: 'Document non trouvé' });
+                return 
             }
     
             // Read file as base64
@@ -142,14 +144,15 @@ class ChauffeurDocumentController {
     }
 
     // Supprimer un document
-    removeDocument = async (req: Request, res: Response) => {
+    removeDocument = async (req: Request, res: Response):Promise<void> => {
         await this.ensureDatabaseConnection(req, res, async () => {
             try {
                 const { id, docType } = req.params;
                 const chauffeur = await Chauffeurs.findById(id);
 
                 if (!chauffeur) {
-                    return res.status(404).json({ error: 'Chauffeur non trouvé' });
+                    res.status(404).json({ error: 'Chauffeur non trouvé' });
+                    return 
                 }
 
                 const documentPath = chauffeur.documents[docType as 'permis' | 'assurance' | 'carte_taxi'].imagePath;
@@ -169,6 +172,7 @@ class ChauffeurDocumentController {
             } catch (error) {
                 console.error('Erreur lors de la suppression du document:', error);
                 res.status(500).json({ error: 'Erreur lors de la suppression du document' });
+                return 
             }
         });
     }

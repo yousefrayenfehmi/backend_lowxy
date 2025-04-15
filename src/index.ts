@@ -17,6 +17,7 @@ import routerFacebook from './Routes/Routefbstartegy';
 import cookieParser from 'cookie-parser';
 import './fonction/Strategy.gmail'; 
 import './fonction/strategy.facebook'; 
+import { RoutecoveringadsInstance } from './Routes/Routecoveringads';
 const app: Application = express();
 const port = 3000;
 
@@ -28,7 +29,7 @@ dotenv.config({ path: path.resolve(__dirname, '../.env') });
 
 
 app.use(cors({
-  origin: [process.env.FRONT_END_URL || 'http://localhost:4200', 'http://localhost:49717'], // Utilisez une variable d'environnement pour plus de flexibilité
+  origin: [process.env.FRONT_END_URL || 'http://localhost:4200', 'http://localhost:53009'], // Utilisez une variable d'environnement pour plus de flexibilité
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'], // Méthodes autorisées
   allowedHeaders: ['Content-Type', 'Authorization'], // Headers autorisés
   credentials: true, // Autorisez les cookies et autres credentials
@@ -49,8 +50,7 @@ app.use(session({
 
 app.use(cookieParser());
 
-app.use(passport.initialize());
-app.use(passport.session());
+
 app.use(routerGmail);
 app.use(routerFacebook);
 app.use(routetouriste.getRouter());
@@ -61,7 +61,7 @@ app.use(RouteTour.getRouter());
 app.use(Routepreferences.getRouter());
 
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
-
+app.use(RoutecoveringadsInstance.getRouter());
 
 app.listen(port, () => {    
   console.log(process.env.FRONT_END_URL);

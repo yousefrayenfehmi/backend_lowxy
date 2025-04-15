@@ -3,6 +3,7 @@ import { controllerchauffeurInstance } from "../Controlleur/Controllerchauffeur"
 import passport from "passport";
 import Fonction from "../fonction/Fonction";
 import { chauffeurDocumentController } from "../Controlleur/ChauffeurDocumentController";
+import { controllerclientInstance } from "../Controlleur/Controllerclient";
 const router: Router = express.Router();
 
 class Routechauffeur {
@@ -25,7 +26,7 @@ class Routechauffeur {
         router.post('/chauffeur/auth/google',controllerchauffeurInstance.authavecgoogle)        
         router.post('/chauffeur/auth/facebook',controllerchauffeurInstance.authavecfacebook)
         router.post('/chauffeur-change-password',  controllerchauffeurInstance.changePassword);
-
+        router.get('/chauffeur-get-all-touriste',controllerchauffeurInstance.verifyToken,controllerclientInstance.getAllTouristes);
         //Crud avec token
         router.get('/chauffeurs', controllerchauffeurInstance.verifyToken,controllerchauffeurInstance.getAllChauffeurs);
         router.get('/chauffeur/:id', controllerchauffeurInstance.verifyToken,controllerchauffeurInstance.getChauffeurById);
@@ -36,6 +37,7 @@ class Routechauffeur {
          //get User by token 
          router.get('/chauffeur-by-token', controllerchauffeurInstance.getChauffeurByToken);
 
+        router.get('/chauffeur-statestique',controllerchauffeurInstance.verifyToken,controllerclientInstance.getTouristebymoth);         
 
          router.post('/verifyTokenChauffeur', controllerchauffeurInstance.verifyToken, (req, res) => {
             console.log("verified")

@@ -83,7 +83,8 @@ class controllerchauffeur {
                     info: {
                         nom: chauffeur.info.nom_complet,
                         email: chauffeur.info.email,
-                        telephone: chauffeur.info.telephone
+                        telephone: chauffeur.info.telephone,
+                        matricule: chauffeur.info.matricule
                     }
                 },
                 token
@@ -108,8 +109,11 @@ class controllerchauffeur {
                 return;
         }
         else if(chauffeur && chauffeur.info.strategy==='google'){
+            console.log('hetha chauffeur');
+            
             const token=Fonction.createtokenetcookies(res, chauffeur._id);
             res.status(201).json({ success: true, chauffeur: chauffeur, token: token });
+            return 
         }
 
         const chauffeure = new Chauffeurs(req.body);
@@ -156,6 +160,7 @@ try {
     else if(chauffeur && chauffeur.info.strategy==='facebook'){
         const token=Fonction.createtokenetcookies(res, chauffeur._id);
         res.status(201).json({ success: true, chauffeur: chauffeur, token: token });
+        return 
     }
     const chauffeure = new Chauffeurs(req.body);
     chauffeure.info.strategy="facebook";
@@ -557,13 +562,15 @@ try {
         const token = authHeader && authHeader.split(' ')[1];
     
         if (!token) {
-            return res.status(401).json({ message: 'Token manquant' });
+             res.status(401).json({ message: 'Token manquant' });
+             return
         }
     
         const { currentPassword, newPassword } = req.body;
     
         if (!newPassword || newPassword.length < 8) {
-            return res.status(400).json({ message: 'New password must be at least 8 characters long' });
+             res.status(400).json({ message: 'New password must be at least 8 characters long' });
+             return
         }
     
         try {
@@ -574,20 +581,23 @@ try {
     
             // Ensure the id is a valid ObjectId
             if (!Types.ObjectId.isValid(id)) {
-                return res.status(400).json({ message: 'Invalid user ID in token' });
+                 res.status(400).json({ message: 'Invalid user ID in token' });
+                 return
             }
     
             // Find the user by id, excluding the password
             const user = await Chauffeurs.findById(id);
     
             if (!user) {
-                return res.status(404).json({ message: 'Chauffeur non trouvé' });
+                 res.status(404).json({ message: 'Chauffeur non trouvé' });
+                 return
             }
     
             // Check if the current password matches
             const isMatch = await bcrypt.compare(currentPassword, user.info.motdepasse);
             if (!isMatch) {
-                return res.status(400).json({ message: 'Current password is incorrect' });
+                 res.status(400).json({ message: 'Current password is incorrect' });
+                 return
             }
     
             // Hash the new password
@@ -614,7 +624,8 @@ try {
             const token = authHeader && authHeader.split(' ')[1];
     
             if (!token) {
-                return res.status(401).json({ message: 'Token manquant' });
+                 res.status(401).json({ message: 'Token manquant' });
+                return
             }
     
             const decoded = jwt.verify(token as string, process.env.JWT_SECRET as string);
@@ -622,12 +633,15 @@ try {
             const chauffeur = await Chauffeurs.findById(id).select('-motdepasse'); // Exclure le mot de passe
     
             if (!chauffeur) {
-                return res.status(404).json({ message: 'Chauffeur non trouvé' });
+                
+                 res.status(404).json({ message: 'Chauffeur non trouvé' });
+                 return
             }
     
             res.status(200).json(chauffeur);
         } catch (err) {
-            return res.status(403).json({ message: 'Token invalide' });
+             res.status(403).json({ message: 'Token invalide' });
+             return
         }
     }
 }
