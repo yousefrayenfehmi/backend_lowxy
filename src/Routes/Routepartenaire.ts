@@ -33,6 +33,12 @@ const router: Router = express.Router();
 
         //get User by token 
         router.get('/partenaire-by-token', ControllerpartenairInstance.getPartenaireByToken);
+
+
+        router.post('/verifyTokenPartenaire', ControllerpartenairInstance.verifyToken, (req, res) => {
+            console.log("verified")
+            res.status(200).json({ message: 'Token valide' });
+          });
     }
 
 }

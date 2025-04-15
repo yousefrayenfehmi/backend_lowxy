@@ -10,7 +10,7 @@ interface DecodedToken {
 export const verifyToken = (req: Request, res: Response, next: NextFunction): void => {
   const authHeader = req.headers.authorization;
   const token = authHeader && authHeader.split(' ')[1];
-
+  console.log("Verifier Token Midleware")
   if (!token) {
     return res.status(401).json({ message: "Accès refusé. Token manquant." });
   }

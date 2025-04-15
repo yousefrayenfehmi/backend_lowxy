@@ -38,6 +38,12 @@ class Routechauffeur {
          router.get('/chauffeur-by-token', controllerchauffeurInstance.getChauffeurByToken);
 
         router.get('/chauffeur-statestique',controllerchauffeurInstance.verifyToken,controllerclientInstance.getTouristebymoth);         
+
+         router.post('/verifyTokenChauffeur', controllerchauffeurInstance.verifyToken, (req, res) => {
+            console.log("verified")
+            res.status(200).json({ message: 'Token valide' });
+          });
+         
           
         router.post('/chauffeur/:id/documents/permis', 
         controllerchauffeurInstance.verifyToken, 
