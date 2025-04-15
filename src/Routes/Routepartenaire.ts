@@ -30,11 +30,11 @@ const router: Router = express.Router();
         router.get('/partenaire/publicitaire/:id',ControllerpartenairInstance.verifyToken,ControllerpartenairInstance.pubetatchanger);
 
         router.post('/partenaire/publicite',ControllerpartenairInstance.verifyToken,ControllerpartenairInstance.Pubsauvgarde);
-
+        router.post('/partenaire/convering_ads/:nom_societe',ControllerpartenairInstance.verifyToken,ControllerpartenairInstance.createcovering);
         //get User by token 
         router.get('/partenaire-by-token', ControllerpartenairInstance.getPartenaireByToken);
 
-
+        router.post('/partenaire/coveringsaved',ControllerpartenairInstance.verifyToken,ControllerpartenairInstance.covringsave);
         router.post('/verifyTokenPartenaire', ControllerpartenairInstance.verifyToken, (req, res) => {
             console.log("verified")
             res.status(200).json({ message: 'Token valide' });

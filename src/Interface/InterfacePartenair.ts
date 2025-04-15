@@ -50,24 +50,14 @@ interface IPartenaire extends Document {
             prix_total: number;
         }>;
     }>;
-    publicites: Array<{
-        contenu: {
-            bannieres: string[];
-            videos: string[];
-        };
-        config: {
-            taille: string;
-            duree: number;
-            nbrTaxi: number;
-        };
-        periode: {
-            debut: Date;
-            fin: Date;
-        };
-        chauffeurs: Array<{
-            chauffeur_id: Types.ObjectId;
-            date_debut: Date;
-        }>;
+    covering_ads: Array<{
+        _id: Types.ObjectId;
+        modele_voiture: string;
+        type_covering: string;
+        image: string;
+        nombre_taxi: number;
+        nombre_jour: number;
+        prix: number;
     }>;
     pub_quiz: Array<{
         _id: Types.ObjectId;

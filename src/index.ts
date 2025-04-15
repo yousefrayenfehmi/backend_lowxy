@@ -15,6 +15,7 @@ import routerFacebook from './Routes/Routefbstartegy';
 import cookieParser from 'cookie-parser';
 import './fonction/Strategy.gmail'; 
 import './fonction/strategy.facebook'; 
+import { RoutecoveringadsInstance } from './Routes/Routecoveringads';
 const app: Application = express();
 const port = 3000;
 
@@ -47,8 +48,7 @@ app.use(session({
 
 app.use(cookieParser());
 
-app.use(passport.initialize());
-app.use(passport.session());
+
 app.use(routerGmail);
 app.use(routerFacebook);
 app.use(routetouriste.getRouter());
@@ -57,7 +57,7 @@ app.use(Routeadmin.getRouter());
 app.use(Routepartenaire.getRouter());
 app.use(Routepreferences.getRouter());
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
-
+app.use(RoutecoveringadsInstance.getRouter());
 
 app.listen(port, () => {    
   console.log(process.env.FRONT_END_URL);

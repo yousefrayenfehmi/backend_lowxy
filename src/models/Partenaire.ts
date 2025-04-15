@@ -69,24 +69,13 @@ const partenaireSchema = new Schema<IPartenaire>({
             prix_total: Number
         }]
     }],
-    publicites: [{
-        contenu: {
-            bannieres: [String],
-            videos: [String]
-        },
-        config: {
-            taille: String,
-            duree: Number,
-            nbrTaxi: Number
-        },
-        periode: {
-            debut: Date,
-            fin: Date
-        },
-        chauffeurs: [{
-            chauffeur_id: { type: Schema.Types.ObjectId, ref: 'Chauffeur' },
-            date_debut: Date
-        }]
+    covering_ads: [{
+        image: { type: String },
+        modele_voiture: {type:String},
+        type_covering: {type:String},
+        nombre_taxi: {type:Number},
+        nombre_jour:{type:Number},
+        prix: {type:Number}
     }],
     pub_quiz: [{
         
@@ -99,7 +88,7 @@ const partenaireSchema = new Schema<IPartenaire>({
             fin: Date
         },
         Budget_totale:{type: Number},
-        statu: {type: String,required: true},
+        statu: {type: String,required: true,default:'pending'},
         impressions: {type: Number},
         clicks: {type: Number},
     }],

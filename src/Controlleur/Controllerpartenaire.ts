@@ -14,21 +14,23 @@ import { ObjectId } from 'mongodb';
 
 const stripe = new Stripe('sk_test_51RAG0WQ4fzXaDh6qqaSa4kETsLitTt3nAHAnaPoodCOrgstRL0puvbFYG6KoruYmawEgL3o8NJ5DmywcApPS2NjH00FKdOaX9O');
 // Définition du middleware upload au niveau du module ou de la classe
-const upload = multer({
+export const upload = multer({
     storage: multer.diskStorage({
       destination: (req, file, cb) => {
         let uploadDir;
         
-        console.log(req.params);
         const nom_societe = req.params.nom_societe;
         
         if (file.fieldname.startsWith('banners')) {
           uploadDir = path.join(__dirname, `../uploads/publicites/${nom_societe}/banners`);
         } else if (file.fieldname.startsWith('videos')) {
           uploadDir = path.join(__dirname, `../uploads/publicites/${nom_societe}/videos`);
-        } else {
-          uploadDir = path.join(__dirname, `../uploads/publicites/${nom_societe}/autre`);
+        } else if (file.fieldname.startsWith('covering')){
+          uploadDir = path.join(__dirname, `../uploads/covering/${nom_societe}/image`);
         }
+        else {
+            uploadDir = path.join(__dirname, `../uploads/publicites/${nom_societe}/autres`);
+          }
         
         if (!fs.existsSync(uploadDir)) {
           fs.mkdirSync(uploadDir, { recursive: true });
@@ -45,9 +47,13 @@ const upload = multer({
       fileSize: 100 * 1024 * 1024 // 100MB max
     }
   }).fields([
-    { name: 'banners', maxCount: 10 },
-    { name: 'videos', maxCount: 5 }
+    { name: 'banners', maxCount: 3 },
+    { name: 'videos', maxCount: 3},
+    {name:'covering',maxCount:1}
   ]);
+
+
+  
 
 class ControllerPartenaire {
     async verifyToken(req: Request, res: Response, next: NextFunction): Promise<void> {
@@ -80,6 +86,67 @@ class ControllerPartenaire {
         } catch (err) {
             res.status(403).json({ message: 'Token invalide' });
         } 
+    }
+
+    createcovering(req: Request, res: Response): void {
+        upload(req, res, async (err) => {
+
+
+            if (err) {
+                console.error('Erreur multer:', err);
+                res.status(400).json({ message: 'Erreur lors de l\'upload des fichiers: ' + err.message });
+                return;
+              }
+              //recuperer les fichiers uploadés
+              const files = req.files as { [fieldname: string]: Express.Multer.File[] };
+              //verifier s'il y a des fichiers
+              if (!files || (!files['covering'] || files['covering'].length === 0)) {
+                res.status(400).json({ message: 'Aucun fichier image ou vidéo envoyé' });
+                return;
+              }
+              console.log(req.body);
+              
+              //Traiter les images
+              const bannerFiles = files['covering'] || [];
+              const path=bannerFiles[0].path;
+              const url=  path.substring(path.indexOf('uploads'));
+              const covring={
+                _id: new Types.ObjectId(),
+                image:url,
+                modele_voiture: req.body.model_voiture,
+                type_covering: req.body.type_covering,
+                nombre_taxi: req.body.nombre_de_taxi,
+                nombre_jour: req.body.nombre_de_jour,
+                prix: req.body.prix,
+              }
+
+
+
+              const session = await stripe.checkout.sessions.create({
+                payment_method_types: ['card'],
+                line_items: [
+                  {
+                    price_data: {
+                      currency: 'eur',
+                      product_data: {
+                        name: `Publicité ${req.params.nom_societe || ''}`,
+                        description: 'Campagne publicitaire',
+                      },
+                      unit_amount:  Math.round(covring.prix * 100), // Conversion en centimes et arrondi
+                    },
+                    quantity: 1,
+                  },
+                ],
+                mode: 'payment',
+                success_url: `${process.env.FRONTEND_URL || 'http://localhost:4200'}/paiment_sucesses/${covring._id}?data=${encodeURIComponent(JSON.stringify(covring))}&type=covering`,
+                cancel_url: `${process.env.FRONTEND_URL || 'http://localhost:4200'}/paiment_echouee/${covring._id}?type=covering`,
+              });
+
+              res.status(200).json({ id: session.id });
+        })
+         
+       
+    
     }
 
     async createPubliciteetpay(req: Request, res: Response): Promise<void> {
@@ -177,8 +244,8 @@ class ControllerPartenaire {
                   },
                 ],
                 mode: 'payment',
-                success_url: `${process.env.FRONTEND_URL || 'http://localhost:4200'}/paiment_sucesses/${pub._id}?data=${encodeURIComponent(JSON.stringify(pub))}&id=${id}&mount=${budgetAmount}`,
-                cancel_url: `${process.env.FRONTEND_URL || 'http://localhost:4200'}/paiment_echouee/${pub._id}`,
+                success_url: `${process.env.FRONTEND_URL || 'http://localhost:4200'}/paiment_sucesses/${pub._id}?data=${encodeURIComponent(JSON.stringify(pub))}&type=publicite`,
+                cancel_url: `${process.env.FRONTEND_URL || 'http://localhost:4200'}/paiment_echouee/${pub._id}?type=publicite`,
                 
               });
               console.log(session);
@@ -210,7 +277,26 @@ class ControllerPartenaire {
       }
 
 
-    
+async covringsave(req: Request, res: Response){
+    if (mongoose.connection.readyState !== 1) {
+        await dbConnection.getConnection().catch(error => {
+            res.status(500).json({ error: 'Erreur de connexion à la base de données' });
+            return;
+        });
+    }
+    try {
+        const id = req.user;
+        const data =req.body.data;
+        console.log("data"+data);
+        const partenaire = await Partenaires.findOne({'_id': id});
+        partenaire?.covering_ads.push(data);
+        await partenaire?.save();
+        res.status(200).json(partenaire);
+    } catch (error) {
+        console.log(error);
+        res.status(500).json({ error: error });
+}
+}
 async Pubsauvgarde(req: Request, res: Response): Promise<void> {
     if (mongoose.connection.readyState !== 1) {
         await dbConnection.getConnection().catch(error => {

@@ -1,6 +1,6 @@
 import express, { Router, Request, Response, NextFunction }  from "express";
 import { controllerAdminInstance } from "../Controlleur/Controlleradmin"; 
-import verifyToken from "../midlleware/VerifierToken";
+import { VerifierTokenInstance } from "../midlleware/VerifierToken";
 import { controllerclientInstance } from "../Controlleur/Controllerclient";
 import { ControllerpartenairInstance } from "../Controlleur/Controllerpartenaire";
 import { controllerchauffeurInstance } from "../Controlleur/Controllerchauffeur";

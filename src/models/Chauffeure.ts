@@ -58,7 +58,9 @@ const ChauffeurSchema = new Schema<IChauffeurs>({
         isverified: { type: Boolean, default: false }
     },
     resetPasswordToken: String,
-    resetPasswordTokenExpire: Date
+    resetPasswordTokenExpire: Date,
+    active_coverings: { type: [Types.ObjectId], required: false },
+    covering_history: { type: [Types.ObjectId], required: false }
 }, {
     timestamps: true
 });

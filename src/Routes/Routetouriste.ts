@@ -3,7 +3,7 @@ import { controllerclientInstance } from "../Controlleur/Controllerclient";
 import passport, { Passport } from "passport";
 import { controllerVilleArticleInstance } from "../Controlleur/Controllervillearticle";
 import Fonction from "../fonction/Fonction";
-import verifyToken from "../midlleware/VerifierToken";
+import { VerifierTokenInstance } from "../midlleware/VerifierToken";
 const router: Router = express.Router();
 class Routetouriste {
     constructor() {
