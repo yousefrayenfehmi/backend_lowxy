@@ -24,7 +24,7 @@ class Routeadmin {
         router.get("/admin/reset-password/:token", controllerAdminInstance.resetpassword);
         router.get("admin/logout", controllerAdminInstance.logout);
         router.get('/admin-reenvoyercode',controllerclientInstance.verifyToken,controllerAdminInstance.renvoyeruncode);
-        
+        router.post('/admin/validecovering/:id',controllerAdminInstance.verifyToken,controllerAdminInstance.validecovering);
         //CrudcreateAdmin
         router.post('/admin-create',controllerAdminInstance.createAdmin);
 

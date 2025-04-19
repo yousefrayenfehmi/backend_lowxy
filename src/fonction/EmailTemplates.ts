@@ -100,7 +100,50 @@ class EmailTemplates{
                             </body>
                             </html>`;
                         }
-         getverifauEmail(code: string): string {
+
+        private NEW_COVERING_TEMPLATE(details: {modele: string, type: string, prix: number}): string {
+            return `<!DOCTYPE html>
+            <html lang="fr">
+            <head>
+                <meta charset="UTF-8">
+                <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                <title>Nouvelle Opportunité de Covering</title>
+            </head>
+            <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+                <div style="background: linear-gradient(to right, #FF9800, #F57C00); padding: 20px; text-align: center;">
+                    <h1 style="color: white; margin: 0;">Nouvelle Opportunité Publicitaire</h1>
+                </div>
+                <div style="background-color: #f9f9f9; padding: 20px; border-radius: 0 0 5px 5px; box-shadow: 0 2px 5px rgba(0,0,0,0.1);">
+                    <p>Bonjour,</p>
+                    <p>Une nouvelle campagne publicitaire est disponible pour votre taxi !</p>
+                    
+                    <div style="background-color: #fff; border: 1px solid #ddd; border-radius: 5px; padding: 15px; margin: 20px 0;">
+                        <h3 style="color: #FF9800; margin-top: 0;">Détails de la campagne :</h3>
+                        <ul style="padding-left: 20px;">
+                            <li><strong>Modèle de véhicule :</strong> ${details.modele}</li>
+                            <li><strong>Type de covering :</strong> ${details.type}</li>
+                            <li><strong>Rémunération :</strong> ${details.prix}€</li>
+                        </ul>
+                    </div>
+                    
+                    <p>Ne manquez pas cette opportunité de générer des revenus supplémentaires !</p>
+                    
+                    <div style="text-align: center; margin: 30px 0;">
+                        <a href="{coveringURL}" style="background-color: #FF9800; color: white; padding: 12px 20px; text-decoration: none; border-radius: 5px; font-weight: bold;">Voir les détails</a>
+                    </div>
+                    
+                    <p>Pour participer à cette campagne, connectez-vous à votre compte chauffeur et rejoignez la campagne.</p>
+                    
+                    <p>Cordialement,<br>L'équipe LOWXY</p>
+                </div>
+                <div style="text-align: center; margin-top: 20px; color: #888; font-size: 0.8em;">
+                    <p>Ceci est un message automatique, merci de ne pas y répondre.</p>
+                </div>
+            </body>
+            </html>`;
+        }
+
+        getverifauEmail(code: string): string {
             return this.VERIFICATION_EMAIL_TEMPLATE(code);
         }
         getPasswordResetRequestTemplate(resetURL: string): string {
@@ -108,6 +151,9 @@ class EmailTemplates{
         }
         getMatricule(matricule: string): string {
             return this.MATRICULE_TEMPLATE(matricule);
+        }
+        getNewCoveringNotification(details: {modele: string, type: string, prix: number}, coveringURL: string): string {
+            return this.NEW_COVERING_TEMPLATE(details).replace('{coveringURL}', coveringURL);
         }
 }
 

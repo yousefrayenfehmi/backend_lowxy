@@ -59,7 +59,7 @@ const ChauffeurSchema = new Schema<IChauffeurs>({
     },
     resetPasswordToken: String,
     resetPasswordTokenExpire: Date,
-    active_coverings: { type: [Types.ObjectId], required: false },
+    active_coverings: { type: [{id:{type:Types.ObjectId, required:false},date_debut:{type:Date, required:false},date_fin:{type:Date, required:false},status:{type:String, required:false}}], required: false },
     covering_history: { type: [Types.ObjectId], required: false }
 }, {
     timestamps: true

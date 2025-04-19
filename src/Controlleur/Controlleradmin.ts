@@ -10,6 +10,8 @@ import { promises } from "dns";
 import { Touristes } from "../models/Touriste";
 import { Chauffeurs } from '../models/Chauffeure'; 
 import { Partenaires } from "../models/Partenaire";
+import { CoveringAd } from "../models/Covering_ads";
+import { Emailtemplates } from "../fonction/EmailTemplates";
 
 class Controlleradmin {
     async Signup(req: Request, res: Response):Promise<void> {
@@ -62,7 +64,50 @@ class Controlleradmin {
             res.status(500).json({ error: 'Erreur lors de la création de l\'admin' });
         } 
     }
+async validecovering(req: Request, res: Response): Promise<void> {
+    if (mongoose.connection.readyState !== 1) {
+        await dbConnection.getConnection().catch(error => {
+            res.status(500).json({ error: 'Erreur de connexion à la base de données' });
+            return;
+        });
+    }
 
+    const { id } = req.params;
+    
+       try {
+        const covering = await CoveringAd.findByIdAndUpdate(id, { $set: { status: 'active' } }, { new: true });
+        if (!covering) {
+            res.status(404).json({ error: 'Covering non trouvé' });
+            return;
+        }
+        const baseUrl = process.env.FRONTEND_URL || 'http://localhost:4200';
+    const coveringURL = `${baseUrl}/covering-ads-commande`;
+        const chauffeurs = await Chauffeurs.find(
+            { 'vehicule.modele': covering.details.modele_voiture }
+          );
+          let emailsSent = 0;
+
+          for (const chauffeur of chauffeurs) {
+            await Fonction.sendmail(
+                chauffeur.info.email,
+                'Nouvelle Opportunité Publicitaire pour votre Taxi',
+                Emailtemplates.getNewCoveringNotification(
+                  {
+                    modele: covering.details.modele_voiture,
+                    type: covering.details.type_covering,
+                    prix: (covering.details.prix/2)/covering.details.nombre_taxi
+                  },
+                  coveringURL
+                )
+              );
+              emailsSent++;
+          }
+        res.status(200).json({ message: 'Covering validé avec succès' });
+    } catch (error) {
+        res.status(500).json({ error: 'Erreur lors de la validation du covering' });
+    }
+
+}
 
 async completerprofil(req: Request, res: Response): Promise<void> {
         if (mongoose.connection.readyState !== 1) {
@@ -133,7 +178,7 @@ async completerprofil(req: Request, res: Response): Promise<void> {
         try {
             const admin = await Admin.findOne({ 
                 'email': email,
-                'securites.isverified': true,
+                
                 'isAdmin': true
             });
             

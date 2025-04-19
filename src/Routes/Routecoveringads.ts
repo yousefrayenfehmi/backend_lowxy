@@ -34,6 +34,13 @@ class Routecoveringads {
 
         // Route pour signaler un problème
         router.post('/report/:campaignId', VerifierTokenInstance.verifyToken, ControllercovringadsInstance.reportCampaignIssue);
+        
+        // Route pour les campagnes d'un créateur
+        router.get('/creator-campaigns', VerifierTokenInstance.verifyToken, ControllercovringadsInstance.getCampaignsByCreator);
+        
+        // Route pour déplacer les campagnes terminées vers l'historique
+           // Route pour compléter automatiquement les campagnes expirées
+   router.post('/complete-campaigns', VerifierTokenInstance.verifyToken, ControllercovringadsInstance.Capaigns_complete);
     }
 }
 

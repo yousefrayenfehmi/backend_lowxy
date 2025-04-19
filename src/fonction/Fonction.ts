@@ -78,6 +78,7 @@ class Fonction {
                                 }
                             });
                         }
+                        
                         if (raison === 'matricule') {
                             const emailpassword = Emailtemplates.getMatricule(code);
                             
@@ -94,17 +95,32 @@ class Fonction {
                                     console.log('Email de matricule envoyé avec succès');
                                 }
                             });
-
-
                         }
                         
-                        throw new Error('Raison d\'email non reconnue');
+                        if (raison === 'Nouvelle Opportunité Publicitaire pour votre Taxi') {
+                            return Email.getTransporter().sendMail({
+                                from: process.env.EMAIL_USER,
+                                to: email,
+                                subject: raison,
+                                html: code // Dans ce cas, le code contient déjà le HTML formaté
+                            }, (error, info) => {
+                                if (error) {
+                                    console.error('Erreur lors de l\'envoi de la notification de covering:', error);
+                                    throw error;
+                                } else {
+                                    console.log('Notification de covering envoyée avec succès à ' + email);
+                                }
+                            });
+                        }
+                        
+                        throw new Error('Raison d\'email non reconnue: ' + raison);
                         
                     } catch (error) {
                         console.error('Erreur globale dans sendmail:', error);
                         throw error;
                     }
                 }
+                
 
     
 }

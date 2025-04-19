@@ -46,7 +46,7 @@ interface IChauffeurs extends Document {
         date?: Date;
         isverified: boolean;
     };
-    active_coverings?: Types.ObjectId[];
+    active_coverings?: {id:Types.ObjectId,date_debut:Date,date_fin:Date}[];
     covering_history?: Types.ObjectId[];
     resetPasswordToken?: string;
     resetPasswordTokenExpire?: Date;

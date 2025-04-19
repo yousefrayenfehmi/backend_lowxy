@@ -1,4 +1,4 @@
-import express, { Application } from 'express';
+import express, { Application, Request, Response } from 'express';
 import routetouriste from './Routes/Routetouriste';
 import Routechauffeur from './Routes/Routechauffeur';
 import Routeadmin from './Routes/Routeadmin';
@@ -23,7 +23,10 @@ const port = 3000;
 
 import { Touristes } from './models/Touriste';
 import { Chauffeurs } from './models/Chauffeure';
+import { ControllercovringadsInstance } from './Controlleur/Controllercovringads';
 
+// Importer node-cron pour les tâches programmées
+import cron from 'node-cron';
 
 dotenv.config({ path: path.resolve(__dirname, '../.env') });
 
@@ -63,8 +66,30 @@ app.use(Routepreferences.getRouter());
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 app.use(RoutecoveringadsInstance.getRouter());
 
-app.listen(port, () => {    
-  console.log(process.env.FRONT_END_URL);
+app.listen(port, async () => {
+  console.log(`Serveur démarré sur le port ${port}`);
   
-    console.log(`Server running on port ${port}`);
+ 
+  
+  // Planifier l'exécution quotidienne des fonctions pour déplacer les campagnes expirées vers l'historique
+  // Format cron: seconde(0-59) minute(0-59) heure(0-23) jour_du_mois(1-31) mois(1-12) jour_de_la_semaine(0-7)
+  cron.schedule('* * * * *', async () => { // Chaque minute
+    console.log('Exécution planifiée: Déplacement des campagnes expirées vers l\'historique');
+    try {
+      const mockReq = {} as any;
+      const mockRes = {
+        status: (code: number) => ({
+          json: (data: any) => {
+            console.log(`Campagnes planifiées complétées: ${data.processed}`);
+          }
+        })
+      } as any;
+      
+      // Exécuter les deux fonctions de nettoyage
+      await ControllercovringadsInstance.Capaigns_complete(mockReq, mockRes);
+      await ControllercovringadsInstance.moveCampaignsToHistory(mockReq, mockRes);
+    } catch (error) {
+      console.error('Erreur lors de l\'exécution planifiée:', error);
+    }
+  });
 });

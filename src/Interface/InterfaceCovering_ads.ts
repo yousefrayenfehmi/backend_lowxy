@@ -20,6 +20,6 @@ export interface ICoveringAd extends Document {
     debut: Date;
     fin: Date;
   };
-  status:  'active' | 'complete' | 'annuler'| 'pending';
+  status:  'active' | 'completed' | 'annuler'| 'pending';
   assigned_taxis: Types.ObjectId[];
 }

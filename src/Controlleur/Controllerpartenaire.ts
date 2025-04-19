@@ -170,6 +170,7 @@ class ControllerPartenaire {
               res.status(400).json({ message: 'Aucun fichier image ou vidéo envoyé' });
               return;
             }
+            console.log(req.body);
             
             // Traiter les images
             const bannerFiles = files['banners'] || [];
@@ -214,12 +215,13 @@ class ControllerPartenaire {
               videos: videorurl,
               call_to_action: callToAction,
               keywords: keywords,
-              periode: periode,
+              periode: {debut: req.body.dateDebut, fin: req.body.dateFin},
               Budget_totale: Budget_totale,
               statu: 'En attente de validation',
               impressions: 0,
               clicks: 0
             };
+            console.log(pub);
             
             // INTÉGRATION STRIPE ICI
             try {
@@ -248,7 +250,6 @@ class ControllerPartenaire {
                 cancel_url: `${process.env.FRONTEND_URL || 'http://localhost:4200'}/paiment_echouee/${pub._id}?type=publicite`,
                 
               });
-              console.log(session);
               
               
              
