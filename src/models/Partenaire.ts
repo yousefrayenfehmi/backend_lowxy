@@ -93,6 +93,7 @@ const partenaireSchema = new Schema<IPartenaire>({
         statu: {type: String,required: true,default:'pending'},
         impressions: {type: Number},
         clicks: {type: Number},
+        facturation: {type: String},
     }],
     securites: {
         code: { type: String, required: false },

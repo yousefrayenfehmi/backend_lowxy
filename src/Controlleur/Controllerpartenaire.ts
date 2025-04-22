@@ -28,6 +28,9 @@ export const upload = multer({
         } else if (file.fieldname.startsWith('covering')){
           uploadDir = path.join(__dirname, `../uploads/covering/${nom_societe}/image`);
         }
+        else if (file.fieldname.startsWith('facture')){
+          uploadDir = path.join(__dirname, `../uploads/quizz/facture`);
+        }
         else {
             uploadDir = path.join(__dirname, `../uploads/publicites/${nom_societe}/autres`);
           }
@@ -49,7 +52,8 @@ export const upload = multer({
   }).fields([
     { name: 'banners', maxCount: 3 },
     { name: 'videos', maxCount: 3},
-    {name:'covering',maxCount:1}
+    {name:'covering',maxCount:1},
+    {name:'facture',maxCount:1}
   ]);
 
 
@@ -87,6 +91,57 @@ class ControllerPartenaire {
             res.status(403).json({ message: 'Token invalide' });
         } 
     }
+    async enregisterstatistiques(req: Request, res: Response): Promise<void> {
+        if (mongoose.connection.readyState !== 1) {
+            await dbConnection.getConnection().catch(error => {
+                res.status(500).json({ error: 'Erreur de connexion à la base de données' });
+                return;
+            });
+        }
+        try {
+            const statistiques = req.body;
+            console.log("Statistiques reçues:");
+            console.log(JSON.stringify(statistiques, null, 2));
+            
+            // Parcourir les statistiques par ID de publicité
+            for (const publiciteId in statistiques) {
+                console.log("publiciteId"+publiciteId);
+                
+                if (statistiques.hasOwnProperty(publiciteId)) {
+                    const { impressions, clics } = statistiques[publiciteId];
+                    console.log(`Publicité ${publiciteId}: ${impressions} impressions, ${clics} clics`);
+                    
+                    // Rechercher et mettre à jour la publicité dans la base de données
+                    try {
+                        const partenaire = await Partenaires.findOneAndUpdate(
+                            { 'pub_quiz._id': publiciteId },
+                            { 
+                                $inc: { 
+                                    'pub_quiz.$.impressions': impressions,
+                                    'pub_quiz.$.clicks': clics 
+                                } 
+                            },
+                            { new: true }
+                        );
+                        
+                        if (!partenaire) {
+                            console.log(`Publicité ${publiciteId} non trouvée`);
+                        }
+                    } catch (updateError) {
+                        console.error(`Erreur lors de la mise à jour de la publicité ${publiciteId}:`, updateError);
+                    }
+                }
+            }
+            
+            res.status(200).json({ message: 'Statistiques enregistrées avec succès' });
+        } catch (error) {
+            console.log(error);
+            res.status(500).json({ error: error });
+        }
+    }
+    
+    
+    
 
     createcovering(req: Request, res: Response): void {
         upload(req, res, async (err) => {
@@ -277,6 +332,34 @@ class ControllerPartenaire {
         });
       }
 
+
+    async getpubAllquizvalide(req: Request, res: Response): Promise<void> {
+      if (mongoose.connection.readyState !== 1) {
+        await dbConnection.getConnection().catch(error => {
+          res.status(500).json({ error: 'Erreur de connexion à la base de données' });
+          return;
+        });
+      }
+      try {
+        console.log('hhhhhhhhhhhhhhhhhhhh active' );
+        
+        // Trouver tous les partenaires avec des pub_quiz actives
+        const partenaires = await Partenaires.find({'pub_quiz.statu': 'active'});
+        console.log(partenaires);
+        
+        const pubsQuizActives = [];
+        
+        for (const partenaire of partenaires) {
+          const pubsActives = partenaire.pub_quiz.filter(quiz => quiz.statu === 'active');
+          pubsQuizActives.push(...pubsActives);
+        }
+        
+        res.status(200).json(pubsQuizActives);
+      } catch (error) {
+        console.log(error);
+        res.status(500).json({ error: 'Erreur lors de la récupération des publicités quiz' });
+      }
+    }
 
 async covringsave(req: Request, res: Response){
     if (mongoose.connection.readyState !== 1) {

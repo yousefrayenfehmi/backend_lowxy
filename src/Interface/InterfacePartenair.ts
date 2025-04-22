@@ -73,6 +73,7 @@ interface IPartenaire extends Document {
         Budget_totale: number;
         impressions: number;
         clicks: number;
+        facturation: string;
     }>;
     securites: {
         code?: string;

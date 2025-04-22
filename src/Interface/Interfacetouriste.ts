@@ -7,6 +7,7 @@ interface QuestionQuiz {
   reponseSelectionnee: string;
   reponseCorrecte: string;
   estCorrect: boolean;
+  facture: string;
 }
 
 // Interface pour le résultat d'un quiz

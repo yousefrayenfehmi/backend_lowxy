@@ -38,12 +38,17 @@ class Routetouriste {
         //get User by token 
         router.get('/touriste-by-token', controllerclientInstance.getTouristeByToken);
         router.post('/completertouriste',controllerclientInstance.verifyToken,controllerclientInstance.completerprofil);
+        router.post('/touriste/uploadfacture', controllerclientInstance.verifyToken, controllerclientInstance.uploadfacture);
 
 
-        router.post('/verifyTokenTouriste', controllerclientInstance.verifyToken, (req, res) => {
-            console.log("verified")
-            res.status(200).json({ message: 'Token valide' });
-          });
+        router.post('/verifyTokenTouriste', controllerclientInstance.verifyToken, (req: Request, res: Response) => {
+            // Retourner l'objet touriste stocké lors de la vérification du token
+            res.status(200).json({ 
+                success: true,
+                message: 'Token valide',
+                touriste: (req as any).touriste 
+            });
+        });
           
     }
 

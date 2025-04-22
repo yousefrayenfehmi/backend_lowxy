@@ -11,7 +11,9 @@ import passport from "passport";
 import mongoose, { Types } from 'mongoose';
 import { Chauffeurs } from "../models/Chauffeure";
 import { log } from "console";
-
+import multer from 'multer';
+import { upload } from "./Controllerpartenaire"; 
+    
 class controllerclient {
     constructor() {
         dotenv.config({ path: path.resolve(__dirname, '../.env') });
@@ -29,8 +31,6 @@ class controllerclient {
     
         const authHeader = req.headers.authorization;
         const token = authHeader && authHeader.split(' ')[1];
-        console.log(token);
-        
     
         if (!token) {
             res.status(401).json({ message: 'Token manquant' });
@@ -48,8 +48,9 @@ class controllerclient {
                 return;
             }
             
+            // Stocker l'ID et l'objet touriste complet dans req
             req.user = id;
-            console.log(id);
+            (req as any).touriste = touriste;
             
             next();
         } catch (err) {
@@ -57,6 +58,52 @@ class controllerclient {
         } 
     }
 
+
+async uploadfacture(req: Request, res: Response): Promise<void> {
+    if (mongoose.connection.readyState !== 1) {
+        await dbConnection.getConnection();
+    }   
+    upload(req, res, async (err) => {
+        if (err) {
+            console.log(err);
+            
+            res.status(500).json({ error: 'Erreur lors du téléchargement de la facture' });
+            return;
+        }
+        
+        try {
+            const files = req.files as { [fieldname: string]: Express.Multer.File[] };
+            
+           
+            console.log("hani hne mawjoud wiwoooooo");
+            console.log(req.body);
+            
+            const factureFiles = files['facture'] || [];
+            const factureDetails = {
+                filename: factureFiles[0]?.filename,
+                originalname: factureFiles[0]?.originalname,
+                mimetype: factureFiles[0]?.mimetype,
+                size: factureFiles[0]?.size,
+                path: factureFiles[0]?.path,
+                type: 'banner'
+              };
+              const bannerurl = factureFiles.map(bann => bann.path.substring(bann.path.indexOf("uploads"))) as string[];
+              const touriste = await Touristes.findOneAndUpdate(
+                {'historique_quiz._id': req.body.Id_quizz},
+                {$set: {'historique_quiz.$.facture': bannerurl[0]}},
+                {new: true}
+              );
+              console.log(bannerurl);
+
+              
+              res.status(200).json({ message: 'Facture téléchargée avec succès' });
+        } catch (error) {
+            console.log(error);
+            
+            res.status(500).json({ error: 'Erreur lors du traitement de la facture' });
+        }
+    });
+}
     
     async getTouristeByToken(req: Request, res: Response): Promise<void> {
         try {
@@ -325,6 +372,9 @@ async completerprofil(req: Request, res: Response): Promise<void> {
                 return;
             });
         }
+        
+      
+        
     
         try {
             const id = req.user;
@@ -366,7 +416,7 @@ async completerprofil(req: Request, res: Response): Promise<void> {
             
     
             // Mise à jour partielle
-            const updatedChauffeur = await Touristes.findByIdAndUpdate(
+            const updatedTouriste = await Touristes.findByIdAndUpdate(
                 id, 
                 { $set: updateFields }, 
                 { 
@@ -375,14 +425,18 @@ async completerprofil(req: Request, res: Response): Promise<void> {
                 }
             );
     
-            if (!updatedChauffeur) {
+            if (!updatedTouriste) {
                 res.status(404).json({ error: 'touriste non trouvé' });
                 return;
             }
+            console.log(updatedTouriste.historique_quiz);
+            
     
             res.status(200).json({
-                message: 'Profil mis à jour avec succès',
-                chauffeur: updatedChauffeur
+                    message: 'Profil mis à jour avec succès',
+                    //retourne historique quiz dernier
+                    historique_quiz: updatedTouriste.historique_quiz?.at(-1) || null,
+                    
             });
     
         } catch (error) {

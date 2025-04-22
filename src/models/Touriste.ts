@@ -27,6 +27,10 @@ const resultatQuizSchema = new Schema({
     type: Number,
     required: true
   },
+  facture: {
+    type: String,
+    required: false
+  },
   lieu: String,
   dateQuiz: {
     type: Date,

@@ -10,6 +10,7 @@ import Stripe from "stripe";
 import { ICoveringAd } from "../Interface/InterfaceCovering_ads";
 import Fonction from "../fonction/Fonction";
 import { Emailtemplates } from "../fonction/EmailTemplates";
+import { log } from "console";
 const stripe = new Stripe('sk_test_51RAG0WQ4fzXaDh6qqaSa4kETsLitTt3nAHAnaPoodCOrgstRL0puvbFYG6KoruYmawEgL3o8NJ5DmywcApPS2NjH00FKdOaX9O');
 export class Controllercovringads {
 
@@ -96,6 +97,7 @@ export class Controllercovringads {
         type='client';
       }
       else{
+        console.log('Utilisateur non trouvé');
         res.status(400).json({error:'Utilisateur non trouvé'});
         return;
       }
@@ -113,64 +115,7 @@ export class Controllercovringads {
       
       await coveringAds.save();
       
-      try {
-        // Récupérer tous les chauffeurs avec le modèle de voiture correspondant
-        console.log('Modèle de voiture recherché: ' + coveringAd.details.modele_voiture);
-        
-        const chauffeurs = await Chauffeurs.find(
-          { 'vehicule.modele': coveringAd.details.modele_voiture }
-        );
-        console.log(`Nombre de chauffeurs trouvés: ${chauffeurs.length}`);
-        
-        // Envoyer un email à chaque chauffeur concerné
-        const baseUrl = process.env.FRONTEND_URL || 'http://localhost:4200';
-        const coveringURL = `${baseUrl}/chauffeur/campagnes/${coveringAds._id}`;
-        
-        // Ajouter ces informations en plus dans les détails
-        const campaignDetails = {
-          modele: coveringAd.details.modele_voiture,
-          type: coveringAd.details.type_covering,
-          prix: coveringAd.details.prix,
-          debut: new Date(coveringAd.dates.debut).toLocaleDateString('fr-FR'),
-          fin: new Date(coveringAd.dates.fin).toLocaleDateString('fr-FR'),
-          nb_jours: coveringAd.details.nombre_jour,
-          nb_taxis: coveringAd.details.nombre_taxi
-        };
-        
-        let emailsSent = 0;
-        for (const chauffeur of chauffeurs) {
-          console.log('Chauffeur ID: ' + chauffeur._id);
-          
-          try {
-            const chauffeurEmail = chauffeur.info.email;
-            console.log('Email du chauffeur: ' + chauffeurEmail);
-            
-            if (chauffeurEmail) {
-              await Fonction.sendmail(
-                chauffeurEmail,
-                'Nouvelle Opportunité Publicitaire pour votre Taxi',
-                Emailtemplates.getNewCoveringNotification(
-                  {
-                    modele: campaignDetails.modele,
-                    type: campaignDetails.type,
-                    prix: (campaignDetails.prix/2)/campaignDetails.nb_taxis
-                  },
-                  coveringURL
-                )
-              );
-              emailsSent++;
-            }
-          } catch (emailError) {
-            console.error('Erreur lors de l\'envoi d\'email au chauffeur ' + chauffeur._id, emailError);
-            // Continuer avec le prochain chauffeur
-          }
-        }
-        
-        console.log(`Emails envoyés: ${emailsSent}/${chauffeurs.length}`);
-      } catch (notificationError) {
-        console.error('Erreur lors de la notification des chauffeurs:', notificationError);
-        // Ne pas bloquer la réponse si la notification échoue
-      }
+      
       
       res.status(200).json({message:'Campagne publicitaire enregistrée avec succès'});
     } catch (error) {

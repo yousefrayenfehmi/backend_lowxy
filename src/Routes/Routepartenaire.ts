@@ -35,10 +35,12 @@ const router: Router = express.Router();
         router.get('/partenaire-by-token', ControllerpartenairInstance.getPartenaireByToken);
 
         router.post('/partenaire/coveringsaved',ControllerpartenairInstance.verifyToken,ControllerpartenairInstance.covringsave);
+        router.get('/partenaire/quizzes/active', ControllerpartenairInstance.getpubAllquizvalide);
         router.post('/verifyTokenPartenaire', ControllerpartenairInstance.verifyToken, (req, res) => {
             console.log("verified")
             res.status(200).json({ message: 'Token valide' });
           });
+        router.post('/partenaire/statistiques',ControllerpartenairInstance.enregisterstatistiques);
     }
 
 }
