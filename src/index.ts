@@ -6,6 +6,7 @@ import Routepreferences from './Routes/RoutesPreferences';
 import Routepartenaire from './Routes/Routepartenaire';
 import Routesstrategy from './Routes/Routesgmailstrategy';
 import RouteTour from './Routes/tourRoute'; // adjust the path as needed
+import RouteReservation from './Routes/RouteReservation ';
 
 import passport from 'passport';
 import session from 'express-session';
@@ -53,7 +54,14 @@ app.use(session({
 
 app.use(cookieParser());
 
+// Middleware spécial pour la route de webhook Stripe
+app.use('/reservations/webhook', express.raw({ type: 'application/json' }));
 
+// Puis les autres middlewares généraux
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+
+// Et enfin vos routes
 app.use(routerGmail);
 app.use(routerFacebook);
 app.use(routetouriste.getRouter());
@@ -62,6 +70,7 @@ app.use(Routeadmin.getRouter());
 app.use(Routepartenaire.getRouter());
 app.use(RouteTour.getRouter());
 app.use(Routepreferences.getRouter());
+app.use(RouteReservation.getRouter());
 
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 app.use(RoutecoveringadsInstance.getRouter());

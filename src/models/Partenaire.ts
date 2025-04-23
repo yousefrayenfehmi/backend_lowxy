@@ -54,21 +54,28 @@ const partenaireSchema = new Schema<IPartenaire>({
             date: Date,
             depart: String,
             capacite: {
-                adultes: Number,
+                adultes: Number,    
                 enfants: Number
             },
             prix: Number,
-            
-            supplements: [String]
-        }],
-        reservations: [{
-            client_id: { type: Schema.Types.ObjectId, ref: 'Client' },
-            date: Date,
-            participants: {
-                adultes: Number,
-                enfants: Number
-            },
-            prix_total: Number
+            supplements: [String],
+            reservations: [{
+                client_id: { type: Schema.Types.ObjectId, ref: 'Client' },
+                date: Date,
+                participants: {
+                    adultes: Number,
+                    enfants: Number
+                },
+                prix_total: Number,
+                // Nouveaux champs pour la gestion des paiements
+                statut: { 
+                    type: String, 
+                    enum: ['en attente de paiement', 'confirmée', 'annulée'],
+                    default: 'en attente de paiement'
+                },
+                payment_id: { type: String },
+                payment_date: { type: Date }
+            }]
         }]
     }],
     covering_ads: [{
