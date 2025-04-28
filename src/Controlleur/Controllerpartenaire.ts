@@ -12,6 +12,8 @@ import fs, { stat } from "fs";
 import Stripe from 'stripe';
 import { ObjectId } from 'mongodb';
 
+import dotenv from 'dotenv';
+
 const stripe = new Stripe('sk_test_51RAG0WQ4fzXaDh6qqaSa4kETsLitTt3nAHAnaPoodCOrgstRL0puvbFYG6KoruYmawEgL3o8NJ5DmywcApPS2NjH00FKdOaX9O');
 // Définition du middleware upload au niveau du module ou de la classe
 export const upload = multer({
@@ -60,6 +62,10 @@ export const upload = multer({
   
 
 class ControllerPartenaire {
+    constructor(){
+        dotenv.config({ path: path.resolve(__dirname, '../../.env') });
+        console.log('process.env.front_end'+process.env.front_end);
+    }
     async verifyToken(req: Request, res: Response, next: NextFunction): Promise<void> {
         if (mongoose.connection.readyState !== 1) {
             await dbConnection.getConnection().catch(error => {
@@ -111,7 +117,7 @@ class ControllerPartenaire {
                     const { impressions, clics } = statistiques[publiciteId];
                     console.log(`Publicité ${publiciteId}: ${impressions} impressions, ${clics} clics`);
                     
-                    // Rechercher et mettre à jour la publicité dans la base de données
+                    // Méthode alternative pour mettre à jour la publicité
                     try {
                         const partenaire = await Partenaires.findOneAndUpdate(
                             { 'pub_quiz._id': publiciteId },
@@ -143,66 +149,7 @@ class ControllerPartenaire {
     
     
 
-    createcovering(req: Request, res: Response): void {
-        upload(req, res, async (err) => {
-
-
-            if (err) {
-                console.error('Erreur multer:', err);
-                res.status(400).json({ message: 'Erreur lors de l\'upload des fichiers: ' + err.message });
-                return;
-              }
-              //recuperer les fichiers uploadés
-              const files = req.files as { [fieldname: string]: Express.Multer.File[] };
-              //verifier s'il y a des fichiers
-              if (!files || (!files['covering'] || files['covering'].length === 0)) {
-                res.status(400).json({ message: 'Aucun fichier image ou vidéo envoyé' });
-                return;
-              }
-              console.log(req.body);
-              
-              //Traiter les images
-              const bannerFiles = files['covering'] || [];
-              const path=bannerFiles[0].path;
-              const url=  path.substring(path.indexOf('uploads'));
-              const covring={
-                _id: new Types.ObjectId(),
-                image:url,
-                modele_voiture: req.body.model_voiture,
-                type_covering: req.body.type_covering,
-                nombre_taxi: req.body.nombre_de_taxi,
-                nombre_jour: req.body.nombre_de_jour,
-                prix: req.body.prix,
-              }
-
-
-
-              const session = await stripe.checkout.sessions.create({
-                payment_method_types: ['card'],
-                line_items: [
-                  {
-                    price_data: {
-                      currency: 'eur',
-                      product_data: {
-                        name: `Publicité ${req.params.nom_societe || ''}`,
-                        description: 'Campagne publicitaire',
-                      },
-                      unit_amount:  Math.round(covring.prix * 100), // Conversion en centimes et arrondi
-                    },
-                    quantity: 1,
-                  },
-                ],
-                mode: 'payment',
-                success_url: `${process.env.FRONTEND_URL || 'http://localhost:4200'}/paiment_sucesses/${covring._id}?data=${encodeURIComponent(JSON.stringify(covring))}&type=covering`,
-                cancel_url: `${process.env.FRONTEND_URL || 'http://localhost:4200'}/paiment_echouee/${covring._id}?type=covering`,
-              });
-
-              res.status(200).json({ id: session.id });
-        })
-         
-       
     
-    }
 
     async createPubliciteetpay(req: Request, res: Response): Promise<void> {
         
@@ -301,8 +248,8 @@ class ControllerPartenaire {
                   },
                 ],
                 mode: 'payment',
-                success_url: `${process.env.FRONTEND_URL || 'http://localhost:4200'}/paiment_sucesses/${pub._id}?data=${encodeURIComponent(JSON.stringify(pub))}&type=publicite`,
-                cancel_url: `${process.env.FRONTEND_URL || 'http://localhost:4200'}/paiment_echouee/${pub._id}?type=publicite`,
+                success_url: `${process.env.front_end }/paiment_sucesses/${pub._id}?data=${encodeURIComponent(JSON.stringify(pub))}&type=publicite`,
+                cancel_url: `${process.env.front_end }/paiment_echouee/${pub._id}?type=publicite`,
                 
               });
               

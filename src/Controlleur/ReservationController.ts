@@ -6,7 +6,7 @@ import Stripe from 'stripe';
 import multer from 'multer';
 import path from 'path';
 import { Touristes } from "../models/Touriste";
-
+import dotenv from 'dotenv';
 // Configuration Stripe
 const stripe = new Stripe('sk_test_51RAG0WQ4fzXaDh6qqaSa4kETsLitTt3nAHAnaPoodCOrgstRL0puvbFYG6KoruYmawEgL3o8NJ5DmywcApPS2NjH00FKdOaX9O');
 // Configuration de Multer
@@ -28,6 +28,10 @@ interface AuthRequest extends Request {
 }
 
 class ReservationController {
+  constructor(){
+    dotenv.config({ path: path.resolve(__dirname, '../../.env') });
+    console.log(process.env.FRONTEND_URL);
+ }
  
   // Créer une session de paiement pour une réservation
   async createPaymentSession(req: AuthRequest, res: Response): Promise<void> {
@@ -160,13 +164,13 @@ class ReservationController {
               },
             ],
             mode: 'payment',
-            success_url: `http://localhost:4200/paiment_sucesses/${reservation._id}?data=${encodeURIComponent(JSON.stringify({
+            success_url: `${process.env.front_end}/paiment_sucesses/${reservation._id}?data=${encodeURIComponent(JSON.stringify({
               reservation_id: reservationId.toString(),
               tour_id: tour_id,
               jour_id: jour_id,
               client_id: client_id
             }))}&type=reservation`,
-            cancel_url: `http://localhost:4200/paiment_echouee/${reservation._id}?data=${encodeURIComponent(JSON.stringify({
+            cancel_url: `${process.env.front_end}/paiment_echouee/${reservation._id}?data=${encodeURIComponent(JSON.stringify({
               tour_id: tour_id
             }))}&type=reservation`,
           });

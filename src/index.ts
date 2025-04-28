@@ -33,10 +33,11 @@ dotenv.config({ path: path.resolve(__dirname, '../.env') });
 
 
 app.use(cors({
-  origin: [process.env.FRONT_END_URL || 'http://localhost:4200', 'http://localhost:53009'], // Utilisez une variable d'environnement pour plus de flexibilité
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'], // Méthodes autorisées
-  allowedHeaders: ['Content-Type', 'Authorization'], // Headers autorisés
+  origin: '*', // Autoriser toutes les origines temporairement pour déboguer
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'], // Méthodes autorisées
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept'], // Headers autorisés
   credentials: true, // Autorisez les cookies et autres credentials
+  exposedHeaders: ['Content-Length', 'X-Foo', 'X-Bar'],
 }));
 
 
@@ -60,6 +61,9 @@ app.use('/reservations/webhook', express.raw({ type: 'application/json' }));
 // Puis les autres middlewares généraux
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+app.get('/', (req: Request, res: Response) => {
+  res.send('Hello World');
+});
 
 // Et enfin vos routes
 app.use(routerGmail);
