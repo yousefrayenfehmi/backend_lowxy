@@ -62,7 +62,7 @@ app.use('/reservations/webhook', express.raw({ type: 'application/json' }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.get('/', (req: Request, res: Response) => {
-  res.send('Hello World');
+  res.status(200).json({ message: 'API iso running' });
 });
 
 // Et enfin vos routes
@@ -79,8 +79,15 @@ app.use(RouteReservation.getRouter());
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 app.use(RoutecoveringadsInstance.getRouter());
 
+// Gestion des erreurs
+app.use((err: Error, req: Request, res: Response, next: Function) => {
+  console.error(err.stack);
+  res.status(500).json({ error: 'Something went wrong!' });
+});
+
+// Démarrer le serveur
 app.listen(port, async () => {
-  console.log(`Serveur démarré sur le port ${port}`);
+  console.log(`Server is running on port ${port}`);
   
  
   

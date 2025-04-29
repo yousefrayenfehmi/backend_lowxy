@@ -24,17 +24,17 @@ export const upload = multer({
         const nom_societe = req.params.nom_societe;
         
         if (file.fieldname.startsWith('banners')) {
-          uploadDir = path.join(__dirname, `../uploads/publicites/${nom_societe}/banners`);
+          uploadDir = path.join(__dirname, `../uploads/compagne/${nom_societe}/banners`);
         } else if (file.fieldname.startsWith('videos')) {
-          uploadDir = path.join(__dirname, `../uploads/publicites/${nom_societe}/videos`);
+          uploadDir = path.join(__dirname, `../uploads/compagne/${nom_societe}/videos`);
         } else if (file.fieldname.startsWith('covering')){
-          uploadDir = path.join(__dirname, `../uploads/covering/${nom_societe}/image`);
+          uploadDir = path.join(__dirname, `../uploads/covering_ads/${nom_societe}/image`);
         }
         else if (file.fieldname.startsWith('facture')){
           uploadDir = path.join(__dirname, `../uploads/quizz/facture`);
         }
         else {
-            uploadDir = path.join(__dirname, `../uploads/publicites/${nom_societe}/autres`);
+            uploadDir = path.join(__dirname, `../uploads/compagne/${nom_societe}/autres`);
           }
         
         if (!fs.existsSync(uploadDir)) {
@@ -149,7 +149,67 @@ class ControllerPartenaire {
     
     
 
+    createcovering(req: Request, res: Response): void {
+        console.log("salut gays");
+        
+        upload(req, res, async (err) => {
+
+
+            if (err) {
+                console.error('Erreur multer:', err);
+                res.status(400).json({ message: 'Erreur lors de l\'upload des fichiers: ' + err.message });
+                return;
+              }
+              //recuperer les fichiers uploadés
+              const files = req.files as { [fieldname: string]: Express.Multer.File[] };
+              //verifier s'il y a des fichiers
+              if (!files || (!files['covering'] || files['covering'].length === 0)) {
+                res.status(400).json({ message: 'Aucun fichier image ou vidéo envoyé' });
+                return;
+              }
+              console.log(req.body);
+              
+              //Traiter les images
+              const bannerFiles = files['covering'] || [];
+              const path=bannerFiles[0].path;
+              const url=  path.substring(path.indexOf('uploads'));
+              const covring={
+                _id: new Types.ObjectId(),
+                image:url,
+                modele_voiture: req.body.model_voiture,
+                type_covering: req.body.type_covering,
+                nombre_taxi: req.body.nombre_de_taxi,
+                nombre_jour: req.body.nombre_de_jour,
+                prix: req.body.prix,
+              }
+
+
+              const session = await stripe.checkout.sessions.create({
+                payment_method_types: ['card'],
+                line_items: [
+                  {
+                    price_data: {
+                      currency: 'eur',
+                      product_data: {
+                        name: `Publicité ${req.params.nom_societe || ''}`,
+                        description: 'Campagne publicitaire',
+                      },
+                      unit_amount:  Math.round(covring.prix * 100), // Conversion en centimes et arrondi
+                    },
+                    quantity: 1,
+                  },
+                ],
+                mode: 'payment',
+                success_url: `${req.headers.origin || process.env.front_end || 'http://a9aec0bf981024fcab3097aa85d37546-1960190977.eu-west-3.elb.amazonaws.com'}//paiment_sucesses/${covring._id}?data=${encodeURIComponent(JSON.stringify(covring))}&type=covering`,
+                cancel_url: `${process.env.front_end}/paiment_echouee/${covring._id}?type=covering`,
+              });
+
+              res.status(200).json({ id: session.id });
+        })
+         
+       
     
+    }
 
     async createPubliciteetpay(req: Request, res: Response): Promise<void> {
         
