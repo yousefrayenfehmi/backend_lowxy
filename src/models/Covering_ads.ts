@@ -17,11 +17,6 @@ const CoveringAdSchema: Schema = new Schema({
     nombre_jour: { type: Number, required: true, min: 1 },
     prix: { type: Number, required: true }
   },
-  dates: {
-    creation: { type: Date, default: Date.now },
-    debut: { type: Date, required: true },
-    fin: { type: Date, required: true }
-  },
   status: { 
     type: String, 
     enum: ['active', 'completed', 'annuler', 'pending'],
@@ -34,6 +29,5 @@ const CoveringAdSchema: Schema = new Schema({
 // Indexes pour améliorer les performances des requêtes
 CoveringAdSchema.index({ 'creator.type': 1, 'creator.id': 1 });
 CoveringAdSchema.index({ status: 1 });
-CoveringAdSchema.index({ 'dates.debut': 1, 'dates.fin': 1 });
 
 export const CoveringAd = model<ICoveringAd>('CoveringAd', CoveringAdSchema);

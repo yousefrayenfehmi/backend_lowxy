@@ -15,11 +15,7 @@ export interface ICoveringAd extends Document {
     nombre_jour: number;
     prix: number;
   };
-  dates: {
-    creation: Date;
-    debut: Date;
-    fin: Date;
-  };
+  
   status:  'active' | 'completed' | 'annuler'| 'pending';
   assigned_taxis: Types.ObjectId[];
 }

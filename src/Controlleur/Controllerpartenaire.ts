@@ -11,46 +11,22 @@ import path from "path";
 import fs, { stat } from "fs";
 import Stripe from 'stripe';
 import { ObjectId } from 'mongodb';
+import { S3 } from 'aws-sdk';
 
 import dotenv from 'dotenv';
 
 const stripe = new Stripe('sk_test_51RAG0WQ4fzXaDh6qqaSa4kETsLitTt3nAHAnaPoodCOrgstRL0puvbFYG6KoruYmawEgL3o8NJ5DmywcApPS2NjH00FKdOaX9O');
+
+const s3 = new S3({
+  accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+  secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+  region: process.env.AWS_REGION || 'eu-west-3'
+});
+
 // Définition du middleware upload au niveau du module ou de la classe
-export const upload = multer({
-    storage: multer.diskStorage({
-      destination: (req, file, cb) => {
-        let uploadDir;
-        
-        const nom_societe = req.params.nom_societe;
-        
-        if (file.fieldname.startsWith('banners')) {
-          uploadDir = path.join(__dirname, `../uploads/compagne/${nom_societe}/banners`);
-        } else if (file.fieldname.startsWith('videos')) {
-          uploadDir = path.join(__dirname, `../uploads/compagne/${nom_societe}/videos`);
-        } else if (file.fieldname.startsWith('covering')){
-          uploadDir = path.join(__dirname, `../uploads/covering_ads/${nom_societe}/image`);
-        }
-        else if (file.fieldname.startsWith('facture')){
-          uploadDir = path.join(__dirname, `../uploads/quizz/facture`);
-        }
-        else {
-            uploadDir = path.join(__dirname, `../uploads/compagne/${nom_societe}/autres`);
-          }
-        
-        if (!fs.existsSync(uploadDir)) {
-          fs.mkdirSync(uploadDir, { recursive: true });
-        }
-        
-        cb(null, uploadDir);
-      },
-      filename: (req, file, cb) => {
-        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-        cb(null, file.fieldname.split('[')[0] + '-' + uniqueSuffix + path.extname(file.originalname));
-      }
-    }),
-    limits: {
-      fileSize: 100 * 1024 * 1024 // 100MB max
-    }
+ export const upload = multer({
+    storage: multer.memoryStorage(),
+    limits: { fileSize: 100 * 1024 * 1024 }
   }).fields([
     { name: 'banners', maxCount: 3 },
     { name: 'videos', maxCount: 3},
@@ -58,8 +34,29 @@ export const upload = multer({
     {name:'facture',maxCount:1}
   ]);
 
-
+ export const uploadToS3 = async (file: Express.Multer.File, destination: string): Promise<string> => {
+  const bucketName = 'lowxysas';
   
+  if (!bucketName) {
+    throw new Error('AWS_S3_BUCKET environment variable is not defined');
+  }
+  
+  const params = {
+    Bucket: bucketName,
+    Key: `uploads/${destination}`,
+    Body: file.buffer,
+    ContentType: file.mimetype
+  };
+
+  try {
+    const result = await s3.upload(params).promise();
+    console.log(`File uploaded successfully to ${result.Location}`);
+    return result.Location;
+  } catch (error) {
+    console.error('Error uploading file to S3:', error);
+    throw error;
+  }
+};
 
 class ControllerPartenaire {
     constructor(){
@@ -153,67 +150,72 @@ class ControllerPartenaire {
         console.log("salut gays");
         
         upload(req, res, async (err) => {
-
-
             if (err) {
                 console.error('Erreur multer:', err);
                 res.status(400).json({ message: 'Erreur lors de l\'upload des fichiers: ' + err.message });
                 return;
-              }
-              //recuperer les fichiers uploadés
-              const files = req.files as { [fieldname: string]: Express.Multer.File[] };
-              //verifier s'il y a des fichiers
-              if (!files || (!files['covering'] || files['covering'].length === 0)) {
+            }
+            //recuperer les fichiers uploadés
+            const files = req.files as { [fieldname: string]: Express.Multer.File[] };
+            //verifier s'il y a des fichiers
+            if (!files || (!files['covering'] || files['covering'].length === 0)) {
                 res.status(400).json({ message: 'Aucun fichier image ou vidéo envoyé' });
                 return;
-              }
-              console.log(req.body);
-              
-              //Traiter les images
-              const bannerFiles = files['covering'] || [];
-              const path=bannerFiles[0].path;
-              const url=  path.substring(path.indexOf('uploads'));
-              const covring={
-                _id: new Types.ObjectId(),
-                image:url,
-                modele_voiture: req.body.model_voiture,
-                type_covering: req.body.type_covering,
-                nombre_taxi: req.body.nombre_de_taxi,
-                nombre_jour: req.body.nombre_de_jour,
-                prix: req.body.prix,
-              }
+            }
+            console.log(req.body);
+            
+            //Traiter les images avec S3
+            const coveringFile = files['covering'][0];
+            const fileName = `covering-${Date.now()}-${Math.round(Math.random() * 1E9)}${path.extname(coveringFile.originalname)}`;
+            const destination = `covering_ads/${req.params.nom_societe}/images/${fileName}`;
+            
+            try {
+                const fileUrl = await uploadToS3(coveringFile, destination);
+                
+                const covring = {
+                    _id: new Types.ObjectId(),
+                    image: fileUrl,
+                    modele_voiture: req.body.model_voiture,
+                    type_covering: req.body.type_covering,
+                    nombre_taxi: req.body.nombre_de_taxi,
+                    nombre_jour: req.body.nombre_de_jour,
+                    prix: req.body.prix,
+                    statu: 'En attente de validation',
+                    impressions: 0,
+                    clicks: 0
+                };
 
+                const session = await stripe.checkout.sessions.create({
+                    payment_method_types: ['card'],
+                    line_items: [
+                        {
+                            price_data: {
+                                currency: 'eur',
+                                product_data: {
+                                    name: `Publicité ${req.params.nom_societe || ''}`,
+                                    description: 'Campagne publicitaire',
+                                },
+                                unit_amount:  Math.round(covring.prix * 100), // Conversion en centimes et arrondi
+                            },
+                            quantity: 1,
+                        },
+                    ],
+                    mode: 'payment',
+                    success_url: `${req.headers.origin || process.env.front_end || 'http://a9aec0bf981024fcab3097aa85d37546-1960190977.eu-west-3.elb.amazonaws.com'}//paiment_sucesses/${covring._id}?data=${encodeURIComponent(JSON.stringify(covring))}&type=covering`,
+                    cancel_url: `${process.env.front_end}/paiment_echouee/${covring._id}?type=covering`,
+                });
 
-              const session = await stripe.checkout.sessions.create({
-                payment_method_types: ['card'],
-                line_items: [
-                  {
-                    price_data: {
-                      currency: 'eur',
-                      product_data: {
-                        name: `Publicité ${req.params.nom_societe || ''}`,
-                        description: 'Campagne publicitaire',
-                      },
-                      unit_amount:  Math.round(covring.prix * 100), // Conversion en centimes et arrondi
-                    },
-                    quantity: 1,
-                  },
-                ],
-                mode: 'payment',
-                success_url: `${req.headers.origin || process.env.front_end || 'http://a9aec0bf981024fcab3097aa85d37546-1960190977.eu-west-3.elb.amazonaws.com'}//paiment_sucesses/${covring._id}?data=${encodeURIComponent(JSON.stringify(covring))}&type=covering`,
-                cancel_url: `${process.env.front_end}/paiment_echouee/${covring._id}?type=covering`,
-              });
-
-              res.status(200).json({ id: session.id });
-        })
-         
-       
-    
+                res.status(200).json({ id: session.id });
+            } catch (error: any) {
+                console.error('Erreur lors de l\'upload sur S3:', error);
+                res.status(500).json({ message: 'Erreur lors de l\'upload: ' + error.message });
+            }
+        });
     }
 
     async createPubliciteetpay(req: Request, res: Response): Promise<void> {
         
-        upload(req, res, async (err) => {
+        upload(req, res, async (err: any) => {
           
           try {
             if (err) {
@@ -234,35 +236,31 @@ class ControllerPartenaire {
             }
             console.log(req.body);
             
-            // Traiter les images
+            // Traiter les images avec S3
             const bannerFiles = files['banners'] || [];
-            const bannerDetails = bannerFiles.map(file => ({
-              filename: file.filename,
-              originalname: file.originalname,
-              mimetype: file.mimetype,
-              size: file.size,
-              path: file.path,
-              type: 'banner'
-            }));
-            const bannerurl = bannerDetails.map(bann => bann.path.substring(bann.path.indexOf("uploads")));
+            const bannerUrls: string[] = [];
             
-            console.log(bannerurl);
+            // Upload des bannières vers S3
+            for (const file of bannerFiles) {
+              const fileName = `banners-${Date.now()}-${Math.round(Math.random() * 1E9)}${path.extname(file.originalname)}`;
+              const destination = `compagne/${req.params.nom_societe}/banners/${fileName}`;
+              const fileUrl = await uploadToS3(file, destination);
+              bannerUrls.push(fileUrl);
+            }
             
-            // Traiter les vidéos
+            // Traiter les vidéos avec S3
             const videoFiles = files['videos'] || [];
-            const videoDetails = videoFiles.map(file => ({
-              filename: file.filename,
-              originalname: file.originalname,
-              mimetype: file.mimetype,
-              size: file.size,
-              path: file.path,
-              type: 'video'
-            }));
-            const videorurl = videoDetails.map(video => video.path.substring(video.path.indexOf("uploads")));
-            const partenaire = await Partenaires.findOne({_id: req.user});
+            const videoUrls: string[] = [];
             
-            // Combiner tous les médias
-            const allMedias = [...bannerDetails, ...videoDetails];
+            // Upload des vidéos vers S3
+            for (const file of videoFiles) {
+              const fileName = `videos-${Date.now()}-${Math.round(Math.random() * 1E9)}${path.extname(file.originalname)}`;
+              const destination = `compagne/${req.params.nom_societe}/videos/${fileName}`;
+              const fileUrl = await uploadToS3(file, destination);
+              videoUrls.push(fileUrl);
+            }
+            
+            const partenaire = await Partenaires.findOne({_id: req.user});
             
             // Récupérer et parser les données JSON
             const id = new mongoose.Types.ObjectId();
@@ -273,8 +271,8 @@ class ControllerPartenaire {
             
             const pub = {
               _id: id,
-              bannieres: bannerurl,
-              videos: videorurl,
+              bannieres: bannerUrls,
+              videos: videoUrls,
               call_to_action: callToAction,
               keywords: keywords,
               periode: {debut: req.body.dateDebut, fin: req.body.dateFin},
@@ -333,7 +331,7 @@ class ControllerPartenaire {
           } catch (error) {
             console.error('Erreur lors de la création de la publicité:', error);
             res.status(500).json({
-              message: 'Erreur lors de la création de la publicité', 
+              message: error, 
             });
           }
         });

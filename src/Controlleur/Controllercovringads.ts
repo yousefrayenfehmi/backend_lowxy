@@ -5,56 +5,55 @@ import { Touristes } from "../models/Touriste";
 import { Partenaires } from "../models/Partenaire";
 import { upload } from "./Controllerpartenaire";
 import { CoveringAd}  from "../models/Covering_ads";
+import { uploadToS3 } from "./Controllerpartenaire";
+import { upload as upload2 } from "./Controllerpartenaire";
 import mongoose, { Types } from "mongoose";
 import Stripe from "stripe";
 import { ICoveringAd } from "../Interface/InterfaceCovering_ads";
 import Fonction from "../fonction/Fonction";
 import { Emailtemplates } from "../fonction/EmailTemplates";
 import { log } from "console";
+import path from "path";
 const stripe = new Stripe('sk_test_51RAG0WQ4fzXaDh6qqaSa4kETsLitTt3nAHAnaPoodCOrgstRL0puvbFYG6KoruYmawEgL3o8NJ5DmywcApPS2NjH00FKdOaX9O');
 export class Controllercovringads {
 
     paidcovering(req: Request, res: Response): void {
-        upload(req, res, async (err) => {
-            if (err) {
-                console.error('Erreur multer:', err);
-                res.status(400).json({ message: 'Erreur lors de l\'upload des fichiers: ' + err.message });
-                return;
-            }
-            //recuperer les fichiers uploadés
-            const files = req.files as { [fieldname: string]: Express.Multer.File[] };
-            //verifier s'il y a des fichiers
-            if (!files || (!files['covering'] || files['covering'].length === 0)) {
-                res.status(400).json({ message: 'Aucun fichier image ou vidéo envoyé' });
-                return;
-            }
-            console.log(req.body);
+      upload(req, res, async (err) => {
+        if (err) {
+            console.error('Erreur multer:', err);
+            res.status(400).json({ message: 'Erreur lors de l\'upload des fichiers: ' + err.message });
+            return;
+        }
+        //recuperer les fichiers uploadés
+        const files = req.files as { [fieldname: string]: Express.Multer.File[] };
+        //verifier s'il y a des fichiers
+        if (!files || (!files['covering'] || files['covering'].length === 0)) {
+            res.status(400).json({ message: 'Aucun fichier image ou vidéo envoyé' });
+            return;
+        }
+        console.log(req.body);
+        
+        //Traiter les images avec S3
+        const coveringFile = files['covering'][0];
+        const fileName = `covering-${Date.now()}-${Math.round(Math.random() * 1E9)}${path.extname(coveringFile.originalname)}`;
+        const destination = `covering_ads/${req.params.nom_societe}/images/${fileName}`;
+        
+        try {
+            const fileUrl = await uploadToS3(coveringFile, destination);
             
-            //Traiter les images
-            const bannerFiles = files['covering'] || [];
-            const path=bannerFiles[0].path;
-            const url=  path.substring(path.indexOf('uploads'));
-            const coveringAd={
+            const covring = {
                 _id: new Types.ObjectId(),
-                details: {
-                    modele_voiture: req.body.model_voiture,
-                    type_covering: req.body.type_covering,
-                    image: url,
-                    nombre_taxi: Number(req.body.nombre_de_taxi),
-                    nombre_jour: Number(req.body.nombre_de_jour),
-                    prix: Number(req.body.prix)
-                },
-                dates: {
-                    creation: new Date(),
-                    debut: new Date(req.body.date_debut),
-                    fin: new Date(req.body.date_fin)
-                },
-                status: 'pending',
-                assigned_taxis: []
-            }
-            
-            console.log(coveringAd);
-            
+                image: fileUrl,
+                modele_voiture: req.body.model_voiture,
+                type_covering: req.body.type_covering,
+                nombre_taxi: req.body.nombre_de_taxi,
+                nombre_jour: req.body.nombre_de_jour,
+                prix: req.body.prix,
+                statu: 'pending',
+                impressions: 0,
+                clicks: 0
+            };
+
             const session = await stripe.checkout.sessions.create({
                 payment_method_types: ['card'],
                 line_items: [
@@ -65,18 +64,22 @@ export class Controllercovringads {
                                 name: `Publicité ${req.params.nom_societe || ''}`,
                                 description: 'Campagne publicitaire',
                             },
-                            unit_amount:  Math.round(coveringAd.details.prix * 100), // Conversion en centimes et arrondi
+                            unit_amount:  Math.round(covring.prix * 100), // Conversion en centimes et arrondi
                         },
                         quantity: 1,
                     },
                 ],
                 mode: 'payment',
-                success_url: `${process.env.FRONTEND_URL || 'http://localhost:4200'}/paiment_sucesses/${coveringAd._id}?data=${encodeURIComponent(JSON.stringify(coveringAd))}&type=covering`,
-                cancel_url: `${process.env.FRONTEND_URL || 'http://localhost:4200'}/paiment_echouee/${coveringAd._id}?type=covering`,
+                success_url: `${req.headers.origin || process.env.front_end || 'http://a9aec0bf981024fcab3097aa85d37546-1960190977.eu-west-3.elb.amazonaws.com'}//paiment_sucesses/${covring._id}?data=${encodeURIComponent(JSON.stringify(covring))}&type=covering`,
+                cancel_url: `${process.env.front_end}/paiment_echouee/${covring._id}?type=covering`,
             });
-            
+
             res.status(200).json({ id: session.id });
-        })
+        } catch (error: any) {
+            console.error('Erreur lors de l\'upload sur S3:', error);
+            res.status(500).json({ message: 'Erreur lors de l\'upload: ' + error.message });
+        }
+    });
     }
 
 
@@ -101,30 +104,40 @@ export class Controllercovringads {
         res.status(400).json({error:'Utilisateur non trouvé'});
         return;
       }
-      const coveringAds = new CoveringAd();
-      coveringAds._id=coveringAd._id;
-      coveringAds.creator={
-        type:type as 'partenaire' | 'client',
-        id:id as Types.ObjectId
+      
+      // S'assurer que coveringAd a l'ID
+      if (!coveringAd._id) {
+        coveringAd._id = new Types.ObjectId();
       }
-      coveringAds.details=coveringAd.details;
-      coveringAds.dates=coveringAd.dates;
-      coveringAds.status=coveringAd.status;
-      coveringAds.assigned_taxis=coveringAd.assigned_taxis;
+      
+      // Créer un nouvel objet CoveringAd avec tous les champs requis
+      const coveringAds = new CoveringAd({
+        _id: coveringAd._id,
+        creator: {
+          type: type as 'partenaire' | 'client',
+          id: id as Types.ObjectId
+        },
+        details: {
+          modele_voiture: coveringAd.modele_voiture,
+          type_covering: coveringAd.type_covering,
+          image: coveringAd.image,
+          nombre_taxi: parseInt(coveringAd.nombre_taxi),
+          nombre_jour: parseInt(coveringAd.nombre_jour),
+          prix: parseFloat(coveringAd.prix)
+        },
+        status: coveringAd.status || 'pending',
+        assigned_taxis: coveringAd.assigned_taxis || []
+      });
+      
       console.log(coveringAds);
       
       await coveringAds.save();
-      
-      
       
       res.status(200).json({message:'Campagne publicitaire enregistrée avec succès'});
     } catch (error) {
       console.log(error);
       res.status(500).json({error:error});
     }
-
-        
-  
     }
 
 
@@ -288,8 +301,8 @@ async getAvailableCampaigns(req: Request, res: Response): Promise<void> {
       chauffeur.active_coverings = chauffeur.active_coverings || [];
       
       // Calculer la date de fin en ajoutant le nombre de jours
-      const dateDebut = new Date(campaign.dates.debut);
-      const dateFin = new Date(dateDebut);
+      const dateDebut = new Date();
+      const dateFin = new Date();
       dateFin.setDate(dateDebut.getDate() + campaign.details.nombre_jour);
       
       chauffeur.active_coverings.push({
@@ -444,7 +457,7 @@ async getAvailableCampaigns(req: Request, res: Response): Promise<void> {
       // Vérifier si la campagne est active depuis moins de 24h (règle d'exemple)
       if (campaign.status === 'active') {
         const nowDate = new Date();
-        const startDate = new Date(campaign.dates.debut);
+        const startDate = new Date(); // Utiliser la date actuelle comme approximation
         const timeDiff = Math.abs(nowDate.getTime() - startDate.getTime());
         const diffHours = timeDiff / (1000 * 3600);
         
