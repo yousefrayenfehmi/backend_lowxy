@@ -32,7 +32,7 @@ class Routetouriste {
         router.put('/touriste/:id', controllerclientInstance.verifyToken, controllerclientInstance.updateTouriste);
         router.delete('/touriste/:id', controllerclientInstance.verifyToken, controllerclientInstance.deleteTouriste);
         router.get('/touristes', controllerclientInstance.verifyToken, controllerclientInstance.getAllTouristes);
-        router.get('/touristecherche/:ville',controllerclientInstance.verifyToken,controllerVilleArticleInstance.getVilleArticleByLocalitation)
+        router.get('/touristecherche/:ville',controllerVilleArticleInstance.getVilleArticleByLocalitation)
         //google authentification
         router.post('/verifyToken',controllerclientInstance.verifyToken);
         //get User by token 

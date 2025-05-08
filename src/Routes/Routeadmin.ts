@@ -6,6 +6,7 @@ import { ControllerpartenairInstance } from "../Controlleur/Controllerpartenaire
 import { controllerchauffeurInstance } from "../Controlleur/Controllerchauffeur";
 import { controllerVilleArticleInstance } from "../Controlleur/Controllervillearticle";
 import { ControllerquestionBankInstance } from "../Controlleur/Controllerquestionquize";
+import { ControllerMargeInstance } from "../Controlleur/ControllerMarge";
 const router: Router = express.Router();
 class Routeadmin {
     constructor() {
@@ -28,38 +29,50 @@ class Routeadmin {
         //CrudcreateAdmin
         router.post('/admin-create',controllerAdminInstance.createAdmin);
 
-        router.get('/admin/:id',controllerAdminInstance.verifyToken ,controllerAdminInstance.getAdminById);
-        router.put('/admin/:id', controllerAdminInstance.verifyToken,controllerAdminInstance.updateAdmin);
-        router.delete('/admin/:id',controllerAdminInstance.verifyToken ,controllerAdminInstance.deleteAdmin);
+        router.get('/admins/:id',controllerAdminInstance.verifyToken ,controllerAdminInstance.getAdminById);
+        router.put('/admins/:id', controllerAdminInstance.verifyToken,controllerAdminInstance.updateAdmin);
+        router.delete('/admins/:id',controllerAdminInstance.verifyToken ,controllerAdminInstance.deleteAdmin);
         router.get('/admins', controllerAdminInstance.verifyToken,controllerAdminInstance.getAllAdmins);
         //crud client
-        router.get('admin/clients', controllerAdminInstance.verifyToken,controllerclientInstance.getAllTouristes);
-        router.get('admin/client/:id', controllerAdminInstance.verifyToken,controllerclientInstance.getTouristeById);
-        router.put('admin/client/:id', controllerAdminInstance.verifyToken,controllerclientInstance.updateTouriste);
-        router.delete('admin/client/:id', controllerAdminInstance.verifyToken,controllerclientInstance.deleteTouriste);
+        router.get('/admins-clients', controllerAdminInstance.verifyToken,controllerclientInstance.getAllTouristes);
+        router.get('admins/client/:id', controllerAdminInstance.verifyToken,controllerclientInstance.getTouristeById);
+        router.put('admins/client/:id', controllerAdminInstance.verifyToken,controllerclientInstance.updateTouriste);
+        router.delete('/admins/client/:id', controllerAdminInstance.verifyToken,controllerclientInstance.deleteTouriste);
         //crud chauffeur
-        router.get('admin/chauffeurs', controllerAdminInstance.verifyToken,controllerchauffeurInstance.getAllChauffeurs);
+        router.get('/admins-chauffeurs', controllerAdminInstance.verifyToken,controllerchauffeurInstance.getAllChauffeurs);
         router.get('admin/chauffeur/:id', controllerAdminInstance.verifyToken,controllerchauffeurInstance.getChauffeurById);
         router.put('admin/chauffeur/:id', controllerAdminInstance.verifyToken,controllerchauffeurInstance.updateChauffeur);
-        router.delete('admin/chauffeur/:id', controllerAdminInstance.verifyToken,controllerchauffeurInstance.deleteChauffeur);
+        router.delete('/admins/chauffeur/:id', controllerAdminInstance.verifyToken,controllerchauffeurInstance.deleteChauffeur);
         //crud touriste
-        router.get('admin/touristes', controllerAdminInstance.verifyToken,controllerclientInstance.getAllTouristes);
-        router.get('admin/touriste/:id', controllerAdminInstance.verifyToken,controllerclientInstance.getTouristeById);
-        router.put('admin/touriste/:id', controllerAdminInstance.verifyToken,controllerclientInstance.updateTouriste);
-        router.delete('admin/touriste/:id', controllerAdminInstance.verifyToken,controllerclientInstance.deleteTouriste);
+        router.get('/admins/touristes', controllerAdminInstance.verifyToken,controllerclientInstance.getAllTouristes);
+        router.get('/admins/touriste/:id', controllerAdminInstance.verifyToken,controllerclientInstance.getTouristeById);
+        router.put('/admins/touriste/:id', controllerAdminInstance.verifyToken,controllerclientInstance.updateTouriste);
+        router.delete('/admins/touriste/:id', controllerAdminInstance.verifyToken,controllerclientInstance.deleteTouriste);
         //crud partenaire
-        router.get('admin/partenaires', controllerAdminInstance.verifyToken,ControllerpartenairInstance.getAllPartenaires);
-        router.get('admin/partenaire/:id', controllerAdminInstance.verifyToken,ControllerpartenairInstance.getPartenaireById);
-        router.put('admin/partenaire/:id', controllerAdminInstance.verifyToken,ControllerpartenairInstance.updatePartenaire);
-        router.delete('admin/partenaire/:id', controllerAdminInstance.verifyToken,ControllerpartenairInstance.deletePartenaire);
+        router.get('/admins-partenaires', controllerAdminInstance.verifyToken,ControllerpartenairInstance.getAllPartenaires);
+        router.get('/admins/partenaire/:id', controllerAdminInstance.verifyToken,ControllerpartenairInstance.getPartenaireById);
+        router.put('/admins/partenaire/:id', controllerAdminInstance.verifyToken,ControllerpartenairInstance.updatePartenaire);
+        router.delete('/admins/partenaire/:id', controllerAdminInstance.verifyToken,ControllerpartenairInstance.deletePartenaire);
         //crud villeArticle sans token
-        router.post('admin/villeArticle',controllerAdminInstance.verifyToken,controllerVilleArticleInstance.createVilleArticle);
+        router.post('/admins/villeArticle',controllerAdminInstance.verifyToken,controllerVilleArticleInstance.createVilleArticle);
         router.get('/admin/villeArticle/:id',controllerAdminInstance.verifyToken,controllerVilleArticleInstance.getVilleArticleById);
         router.get('/admine/villeArticle/:id',controllerVilleArticleInstance.getVilleArticleById);
         router.put('/admin/villeArticle/:id',controllerAdminInstance.verifyToken,controllerVilleArticleInstance.updateVilleArticle);
         router.put('/admine/villeArticle',controllerVilleArticleInstance.updateVilleArticle);
         router.delete('/admin/villeArticle/:id',controllerAdminInstance.verifyToken,controllerVilleArticleInstance.deleteVilleArticle);
         router.delete('/admine/villeArticle/:id',controllerVilleArticleInstance.deleteVilleArticle);
+
+        //crud marge
+        // Routes des marges - Sans token pour test
+        router.get('/admin/marges/stats', controllerAdminInstance.verifyToken, ControllerMargeInstance.getMargeStats);
+        router.get('/admins/marges',controllerAdminInstance.verifyToken,ControllerMargeInstance.getAllMarges);
+        // Routes des marges avec token
+        router.get('/admin/marges/tour/:tourId', controllerAdminInstance.verifyToken, ControllerMargeInstance.getMargesByTourId);
+        router.post('/admin/marges', controllerAdminInstance.verifyToken, ControllerMargeInstance.createMarge);
+        router.put('/admin/marges/:id', controllerAdminInstance.verifyToken, ControllerMargeInstance.updateMarge);
+        router.patch('/admin/marges/:id/status', controllerAdminInstance.verifyToken, ControllerMargeInstance.toggleMargeStatus);
+        router.delete('/admin/marges/:id', controllerAdminInstance.verifyToken, ControllerMargeInstance.deleteMarge);
+        router.post('/admin/marges/global', controllerAdminInstance.verifyToken, ControllerMargeInstance.applyGlobalMarge);
 
         router.post('/admine/villeArticle',controllerVilleArticleInstance.createVilleArticle);
         router.get('/admine/villeArticles',controllerVilleArticleInstance.getAllVilleArticles);
@@ -80,8 +93,11 @@ class Routeadmin {
 
         router.get("/admin-statistics",controllerAdminInstance.verifyToken, controllerAdminInstance.getStatistics);
 
+        // Ajout des routes pour S3
+        router.post('/admine/villeArticle/s3', controllerVilleArticleInstance.createVilleArticleS3);
+        router.put('/admine/villeArticle/s3', controllerVilleArticleInstance.updateVilleArticleS3);
 
-        
+     
     }
 }
 

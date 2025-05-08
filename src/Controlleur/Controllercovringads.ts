@@ -70,7 +70,7 @@ export class Controllercovringads {
                     },
                 ],
                 mode: 'payment',
-                success_url: `${req.headers.origin || process.env.front_end || 'http://a9aec0bf981024fcab3097aa85d37546-1960190977.eu-west-3.elb.amazonaws.com'}//paiment_sucesses/${covring._id}?data=${encodeURIComponent(JSON.stringify(covring))}&type=covering`,
+                success_url: `${ process.env.front_end || 'http://a9aec0bf981024fcab3097aa85d37546-1960190977.eu-west-3.elb.amazonaws.com'}//paiment_sucesses/${covring._id}?data=${encodeURIComponent(JSON.stringify(covring))}&type=covering`,
                 cancel_url: `${process.env.front_end}/paiment_echouee/${covring._id}?type=covering`,
             });
 

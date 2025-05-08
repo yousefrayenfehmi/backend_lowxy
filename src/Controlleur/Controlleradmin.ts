@@ -442,14 +442,14 @@ async completerprofil(req: Request, res: Response): Promise<void> {
                 return res.status(500).json({ error: 'Erreur de connexion à la base de données' });
             });
         }
-
-        const admin = new Admin(req.body);
         console.log(req.body)
+        const admin = new Admin(req.body);
+        console.log(admin)
         try {
-            admin.mot_de_passe = await bcrypt.hash(admin.mot_de_passe, 10);
-
+            admin.mot_de_passe = await bcrypt.hash(req.body.motdepasse, 10);
+            console.log('hash')
             const savedAdmin = await admin.save();
-            
+            console.log('saved')
             res.status(201).json(savedAdmin);
         } catch (error) {
             console.log(error)

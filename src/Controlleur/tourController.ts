@@ -6,7 +6,9 @@ import mongoose, { Types } from 'mongoose';
 import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
-
+import { uploadToS3 } from "./Controllerpartenaire";
+import { upload as upload2 } from "./Controllerpartenaire";
+import AWS from 'aws-sdk';
 // Extension de l'interface Request pour inclure l'ID de l'utilisateur
 interface AuthRequest extends Request {
     user?: string;
@@ -30,11 +32,13 @@ const storage = multer.diskStorage({
 });
 
 // Filtrer les fichiers pour accepter uniquement les images
-const fileFilter = (req, file, cb) => {
+const fileFilter = (req: Request, file: Express.Multer.File, cb: multer.FileFilterCallback) => {
   if (file.mimetype.startsWith('image/')) {
     cb(null, true);
   } else {
-    cb(new Error('Format de fichier non pris en charge. Veuillez télécharger une image.'), false);
+    cb(null, false);
+    // Nous ne passons pas d'erreur directement au callback car multer s'attend à ce que le premier paramètre soit null
+    // L'erreur est gérée via le second paramètre false
   }
 };
 
@@ -202,11 +206,11 @@ class TourController {
             
             if (updateData.jours) {
                 // Identifier les jours existants qui sont déjà passés
-                const joursExistants = tour.jours.filter(jour => new Date(jour.date) < maintenant);
+                const joursExistants = tour.jours.filter((jour: any) => new Date(jour.date) < maintenant);
                 
                 // Vérifier si les dates passées sont modifiées
-                const datesPasseesModifiees = joursExistants.some(jourExistant => {
-                    const jourModifie = updateData.jours.find(jour => 
+                const datesPasseesModifiees = joursExistants.some((jourExistant: any) => {
+                    const jourModifie = updateData.jours.find((jour: any) => 
                         jour._id && jour._id.toString() === jourExistant._id.toString()
                     );
                     return jourModifie && JSON.stringify(jourModifie) !== JSON.stringify(jourExistant);
@@ -257,7 +261,7 @@ class TourController {
             if (!partenaire) return;
 
             // Trouver l'index du tour dans le tableau
-            const tourIndex = partenaire.tours.findIndex(tour => tour._id.toString() === tourId);
+            const tourIndex = partenaire.tours.findIndex((tour: any) => tour._id.toString() === tourId);
             
             if (tourIndex === -1) {
                 res.status(404).json({ error: 'Tour non trouvé' });
@@ -276,7 +280,7 @@ class TourController {
             // Supprimer les images associées au tour
             if (partenaire.tours[tourIndex].images && partenaire.tours[tourIndex].images.length > 0) {
                 // Tenter de supprimer les fichiers physiques
-                partenaire.tours[tourIndex].images.forEach(imageUrl => {
+                partenaire.tours[tourIndex].images.forEach((imageUrl: string) => {
                     try {
                         // Extraire le nom de fichier de l'URL
                         const fileName = path.basename(imageUrl);
@@ -329,7 +333,7 @@ class TourController {
             res.status(200).json({ 
                 success: true, 
                 tour: {
-                    ...tour.toObject(),
+                    ...JSON.parse(JSON.stringify(tour)),
                     partenaire: {
                         id: partenaire._id,
                         nom: partenaire.inforamtion.inforegester.nom_entreprise
@@ -351,10 +355,10 @@ class TourController {
             const partenaires = await Partenaires.find({}, 'inforamtion.inforegester.nom_entreprise tours');
             
             // Construire un tableau avec tous les tours et le nom du partenaire associé
-            const allTours = [];
+            const allTours: Array<any> = [];
             
             partenaires.forEach(partenaire => {
-                partenaire.tours.forEach(tour => {
+                partenaire.tours.forEach((tour: any) => {
                     allTours.push({
                         tourId: tour._id,
                         partenaireId: partenaire._id,
@@ -365,7 +369,7 @@ class TourController {
                         duree: tour.duree,
                         itineraire: tour.itineraire,
                         images: tour.images || [], // Inclure les images
-                        jours: tour.jours.map(jour => ({
+                        jours: tour.jours.map((jour: any) => ({
                             _id: jour._id,
                             date: jour.date,
                             depart: jour.depart,
@@ -401,16 +405,16 @@ class TourController {
                 'inforamtion.inforegester.nom_entreprise tours'
             );
             
-            const toursFiltered = [];
+            const toursFiltered: Array<any> = [];
             
             partenaires.forEach(partenaire => {
                 // Filtrer les tours correspondant à la ville
-                const filteredTours = partenaire.tours.filter(tour => 
+                const filteredTours = partenaire.tours.filter((tour: any) => 
                     tour.ville.toLowerCase().includes(ville.toLowerCase())
                 );
                 
                 // Ajouter chaque tour avec les informations du partenaire
-                filteredTours.forEach(tour => {
+                filteredTours.forEach((tour: any) => {
                     toursFiltered.push({
                         tourId: tour._id,
                         partenaireId: partenaire._id,
@@ -557,17 +561,19 @@ class TourController {
             const imageUrl = req.query.imageUrl as string;
             
             if (!imageUrl) {
-                return res.status(400).json({ 
+                res.status(400).json({ 
                     success: false, 
                     message: 'URL de l\'image manquante' 
                 });
+                return;
             }
             
             if (!Types.ObjectId.isValid(tourId)) {
-                return res.status(400).json({ 
+                res.status(400).json({ 
                     success: false, 
                     message: 'ID tour invalide' 
                 });
+                return;
             }
 
             const partenaire = await this.getPartenaireFromToken(req, res);
@@ -575,22 +581,24 @@ class TourController {
 
             const tour = partenaire.tours.id(tourId);
             if (!tour) {
-                return res.status(404).json({ 
+                res.status(404).json({ 
                     success: false, 
                     message: 'Tour non trouvé' 
                 });
+                return;
             }
 
             // Vérifier si l'image existe dans le tableau
             if (!tour.images || !tour.images.includes(imageUrl)) {
-                return res.status(404).json({ 
+                res.status(404).json({ 
                     success: false, 
                     message: 'Image non trouvée pour ce tour' 
                 });
+                return;
             }
 
             // Supprimer l'image du tableau
-            tour.images = tour.images.filter(img => img !== imageUrl);
+            tour.images = tour.images.filter((img: string) => img !== imageUrl);
             await partenaire.save();
 
             // Tenter de supprimer le fichier du serveur
@@ -607,15 +615,260 @@ class TourController {
                 // On continue même si la suppression du fichier échoue
             }
 
-            return res.status(200).json({ 
+            res.status(200).json({ 
                 success: true, 
                 message: 'Image supprimée avec succès' 
             });
+            return;
         } catch (error) {
             console.error('Erreur lors de la suppression de l\'image:', error);
-            return res.status(500).json({ 
+            res.status(500).json({ 
                 success: false, 
                 message: 'Erreur lors de la suppression de l\'image' 
+            });
+            return;
+        }
+    }
+
+    // Télécharger une image pour un tour directement sur S3
+    async uploadTourImageS3(req: AuthRequest, res: Response): Promise<void> {
+        // Configuration de multer pour la mémoire temporaire
+        const s3Upload = multer({
+            storage: multer.memoryStorage(),
+            limits: {
+                fileSize: 2 * 1024 * 1024 // 2MB
+            },
+            fileFilter: fileFilter
+        }).single('image');
+
+        s3Upload(req, res, async (err) => {
+            if (err) {
+                if (err instanceof multer.MulterError) {
+                    // Erreur Multer
+                    if (err.code === 'LIMIT_FILE_SIZE') {
+                        res.status(400).json({ 
+                            success: false, 
+                            message: 'La taille du fichier dépasse la limite (2MB)' 
+                        });
+                        return;
+                    }
+                    res.status(400).json({ 
+                        success: false, 
+                        message: `Erreur lors du téléchargement: ${err.message}` 
+                    });
+                    return;
+                } else {
+                    // Autre erreur
+                    res.status(400).json({ 
+                        success: false, 
+                        message: err.message 
+                    });
+                    return;
+                }
+            }
+
+            if (!req.file) {
+                res.status(400).json({ 
+                    success: false, 
+                    message: 'Aucune image n\'a été téléchargée' 
+                });
+                return;
+            }
+
+            try {
+                const tourId = req.params.tourId;
+                
+                if (!Types.ObjectId.isValid(tourId)) {
+                    res.status(400).json({ 
+                        success: false, 
+                        message: 'ID tour invalide' 
+                    });
+                    return;
+                }
+
+                if (!(await this.checkDBConnection(res))) {
+                    return;
+                }
+
+                const partenaire = await this.getPartenaireFromToken(req, res);
+                if (!partenaire) {
+                    return;
+                }
+
+                const tour = partenaire.tours.id(tourId);
+                if (!tour) {
+                    res.status(404).json({ 
+                        success: false, 
+                        message: 'Tour non trouvé' 
+                    });
+                    return;
+                }
+
+                // Initialiser le tableau d'images s'il n'existe pas
+                if (!tour.images) {
+                    tour.images = [];
+                }
+
+                // Limiter le nombre d'images à 5 par tour
+                if (tour.images.length >= 5) {
+                    res.status(400).json({ 
+                        success: false, 
+                        message: 'Nombre maximum d\'images atteint (5 images par tour)' 
+                    });
+                    return;
+                }
+
+                // Télécharger l'image sur S3
+                try {
+                    const fileName = `tour-image-${tourId}-${Date.now()}-${Math.round(Math.random() * 1E9)}${path.extname(req.file.originalname)}`;
+                    const destination = `tours/${partenaire._id}/images/${fileName}`;
+                    
+                    const imageUrl = await uploadToS3(req.file, destination);
+                    
+                    // Ajouter l'URL au tableau d'images
+                    tour.images.push(imageUrl);
+                    await partenaire.save();
+
+                    res.status(200).json({ 
+                        success: true, 
+                        message: 'Image téléchargée avec succès', 
+                        imageUrl: imageUrl 
+                    });
+                } catch (s3Error: any) {
+                    console.error('Erreur S3 lors du téléchargement de l\'image:', s3Error);
+                    
+                    // Gestion spécifique des erreurs S3
+                    if (s3Error.code === 'AccessDenied' || s3Error.statusCode === 403) {
+                        res.status(403).json({
+                            success: false,
+                            message: 'Accès refusé à S3. Vérifiez les permissions IAM.',
+                            error: s3Error.message
+                        });
+                    } else if (s3Error.code === 'ThrottlingException') {
+                        res.status(429).json({
+                            success: false,
+                            message: 'Trop de requêtes vers S3. Veuillez réessayer plus tard.',
+                            error: s3Error.message
+                        });
+                    } else {
+                        res.status(500).json({ 
+                            success: false, 
+                            message: 'Erreur lors du téléchargement vers S3',
+                            error: s3Error.message
+                        });
+                    }
+                    return;
+                }
+            } catch (error: any) {
+                console.error('Erreur lors du téléchargement de l\'image:', error);
+                res.status(500).json({ 
+                    success: false, 
+                    message: 'Erreur lors du téléchargement de l\'image',
+                    error: error.message
+                });
+            }
+        });
+    }
+    
+    // Supprimer une image de S3 pour un tour
+    async deleteTourImageS3(req: AuthRequest, res: Response): Promise<void> {
+        if (!(await this.checkDBConnection(res))) return;
+
+        try {
+            const tourId = req.params.tourId;
+            const imageUrl = req.query.imageUrl as string;
+            
+            if (!imageUrl) {
+                res.status(400).json({ 
+                    success: false, 
+                    message: 'URL de l\'image manquante' 
+                });
+                return;
+            }
+            
+            if (!Types.ObjectId.isValid(tourId)) {
+                res.status(400).json({ 
+                    success: false, 
+                    message: 'ID tour invalide' 
+                });
+                return;
+            }
+
+            const partenaire = await this.getPartenaireFromToken(req, res);
+            if (!partenaire) return;
+
+            const tour = partenaire.tours.id(tourId);
+            if (!tour) {
+                res.status(404).json({ 
+                    success: false, 
+                    message: 'Tour non trouvé' 
+                });
+                return;
+            }
+
+            // Vérifier si l'image existe dans le tableau
+            if (!tour.images || !tour.images.includes(imageUrl)) {
+                res.status(404).json({ 
+                    success: false, 
+                    message: 'Image non trouvée pour ce tour' 
+                });
+                return;
+            }
+            
+            // Supprimer l'image du tableau
+            tour.images = tour.images.filter((img: string) => img !== imageUrl);
+            
+            try {
+                // Extraction du chemin S3 depuis l'URL
+                // L'URL est généralement de la forme: https://bucket-name.s3.region.amazonaws.com/uploads/path/to/file
+                const urlParts = new URL(imageUrl);
+                const s3Path = urlParts.pathname.substring(1); // Enlever le slash initial
+                
+                // Configurer l'objet S3 (normalement déjà disponible via l'import)
+                const s3 = new AWS.S3({
+                    accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+                    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+                    region: process.env.AWS_REGION || 'eu-west-3'
+                });
+                
+                // Extraire le nom du bucket à partir de l'URL
+                const bucketName = process.env.AWS_S3_BUCKET || 'lowxysas';
+                
+                // Paramètres pour la suppression
+                const params = {
+                    Bucket: bucketName,
+                    Key: s3Path
+                };
+                
+                // Supprimer l'objet de S3
+                await s3.deleteObject(params).promise();
+                
+                // Sauvegarder les modifications dans la base de données
+                await partenaire.save();
+                
+                res.status(200).json({ 
+                    success: true, 
+                    message: 'Image supprimée avec succès de S3 et de la base de données' 
+                });
+            } catch (s3Error: any) {
+                console.error('Erreur lors de la suppression du fichier S3:', s3Error);
+                
+                // On continue même si l'image n'a pas pu être supprimée de S3
+                // Sauvegarder les modifications dans la base de données pour supprimer au moins la référence
+                await partenaire.save();
+                
+                res.status(200).json({ 
+                    success: true, 
+                    message: 'Image supprimée de la base de données, mais erreur lors de la suppression sur S3',
+                    error: s3Error.message
+                });
+            }
+        } catch (error: any) {
+            console.error('Erreur lors de la suppression de l\'image:', error);
+            res.status(500).json({ 
+                success: false, 
+                message: 'Erreur lors de la suppression de l\'image',
+                error: error.message
             });
         }
     }

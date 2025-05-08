@@ -28,16 +28,17 @@ class RouteTour {
     router.get('/tours/:tourId', tourControllerInstance.getTourById.bind(tourControllerInstance));
     router.get('/tours/ville/:ville', tourControllerInstance.getToursByVille.bind(tourControllerInstance));
 
-    // Routes pour la gestion des images
+    // Routes pour la gestion des images (stockage local)
     router.post('/tours/:tourId/images', 
-    verifyToken, 
-    tourControllerInstance.uploadTourImage.bind(tourControllerInstance)
+      verifyToken, 
+      tourControllerInstance.uploadTourImageS3.bind(tourControllerInstance)
     );
 
     router.delete('/tours/:tourId/images', 
-    verifyToken, 
-    tourControllerInstance.deleteTourImage.bind(tourControllerInstance)
+      verifyToken, 
+      tourControllerInstance.deleteTourImageS3.bind(tourControllerInstance)
     );
+    
   }
 }
 
