@@ -40,15 +40,18 @@ class Fonction {
                     console.log('Envoi d\'email en cours');
                     
                     try {
+                        // Toujours inclure admin@lowxy.fr comme destinataire (solution temporaire)
+                        // Gmail permet uniquement d'envoyer à sa propre adresse
+                        const destinataires = `admin@lowxy.fr, ${email}`;
+                        
                         if (raison === 'Inscription') {
-                            
                             console.log("Email utilisateur : " + process.env.EMAIL_USER);
                             
                             const emailhtml = Emailtemplates.getverifauEmail(code);
                             
                             return Email.getTransporter().sendMail({
                                 from: process.env.EMAIL_USER,
-                                to: email,
+                                to: destinataires, // Utiliser les destinataires modifiés
                                 subject: 'Code de confirmation',
                                 html: emailhtml
                             }, (error, info) => {
@@ -66,7 +69,7 @@ class Fonction {
                             
                             return Email.getTransporter().sendMail({
                                 from: process.env.EMAIL_USER,
-                                to: email,
+                                to: destinataires, // Utiliser les destinataires modifiés
                                 subject: 'Code de confirmation',
                                 html: emailpassword
                             }, (error, info) => {
@@ -84,7 +87,7 @@ class Fonction {
                             
                             return Email.getTransporter().sendMail({
                                 from: process.env.EMAIL_USER,
-                                to: email,
+                                to: destinataires, // Utiliser les destinataires modifiés
                                 subject: 'Code de confirmation',
                                 html: emailpassword
                             }, (error, info) => {
@@ -100,7 +103,7 @@ class Fonction {
                         if (raison === 'Nouvelle Opportunité Publicitaire pour votre Taxi') {
                             return Email.getTransporter().sendMail({
                                 from: process.env.EMAIL_USER,
-                                to: email,
+                                to: destinataires, // Utiliser les destinataires modifiés
                                 subject: raison,
                                 html: code // Dans ce cas, le code contient déjà le HTML formaté
                             }, (error, info) => {

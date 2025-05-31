@@ -7,6 +7,8 @@ import { controllerchauffeurInstance } from "../Controlleur/Controllerchauffeur"
 import { controllerVilleArticleInstance } from "../Controlleur/Controllervillearticle";
 import { ControllerquestionBankInstance } from "../Controlleur/Controllerquestionquize";
 import { ControllerMargeInstance } from "../Controlleur/ControllerMarge";
+import { Controllercovringads, ControllercovringadsInstance } from "../Controlleur/Controllercovringads";
+import { ControllerConfigpubliciteInstance } from "../Controlleur/ControllerConfigpublicite";
 const router: Router = express.Router();
 class Routeadmin {
     constructor() {
@@ -56,26 +58,27 @@ class Routeadmin {
         //crud villeArticle sans token
         router.post('/admins/villeArticle',controllerAdminInstance.verifyToken,controllerVilleArticleInstance.createVilleArticle);
         router.get('/admin/villeArticle/:id',controllerAdminInstance.verifyToken,controllerVilleArticleInstance.getVilleArticleById);
-        router.get('/admine/villeArticle/:id',controllerVilleArticleInstance.getVilleArticleById);
+        router.get('/admins-villeArticle/:id',controllerVilleArticleInstance.getVilleArticleById);
         router.put('/admin/villeArticle/:id',controllerAdminInstance.verifyToken,controllerVilleArticleInstance.updateVilleArticle);
         router.put('/admine/villeArticle',controllerVilleArticleInstance.updateVilleArticle);
         router.delete('/admin/villeArticle/:id',controllerAdminInstance.verifyToken,controllerVilleArticleInstance.deleteVilleArticle);
         router.delete('/admine/villeArticle/:id',controllerVilleArticleInstance.deleteVilleArticle);
-
+        router.get('/admine-partenaire/pub-quiz/:id',controllerAdminInstance.verifyToken,ControllerpartenairInstance.pubetatchanger);
+        router.delete('/admine-partenaire/pub-quiz/:id',controllerAdminInstance.verifyToken,ControllerpartenairInstance.deletepubquiz);
         //crud marge
         // Routes des marges - Sans token pour test
-        router.get('/admin/marges/stats', controllerAdminInstance.verifyToken, ControllerMargeInstance.getMargeStats);
-        router.get('/admins/marges',controllerAdminInstance.verifyToken,ControllerMargeInstance.getAllMarges);
+        router.get('/admins/marges/stats', controllerAdminInstance.verifyToken, ControllerMargeInstance.getMargeStats);
+        router.get('/admin-marge',controllerAdminInstance.verifyToken,ControllerMargeInstance.getAllMarges);
         // Routes des marges avec token
-        router.get('/admin/marges/tour/:tourId', controllerAdminInstance.verifyToken, ControllerMargeInstance.getMargesByTourId);
-        router.post('/admin/marges', controllerAdminInstance.verifyToken, ControllerMargeInstance.createMarge);
-        router.put('/admin/marges/:id', controllerAdminInstance.verifyToken, ControllerMargeInstance.updateMarge);
-        router.patch('/admin/marges/:id/status', controllerAdminInstance.verifyToken, ControllerMargeInstance.toggleMargeStatus);
-        router.delete('/admin/marges/:id', controllerAdminInstance.verifyToken, ControllerMargeInstance.deleteMarge);
-        router.post('/admin/marges/global', controllerAdminInstance.verifyToken, ControllerMargeInstance.applyGlobalMarge);
+        router.get('/admins/marges/tour/:tourId', controllerAdminInstance.verifyToken, ControllerMargeInstance.getMargesByTourId);
+        router.post('/admins/marges', controllerAdminInstance.verifyToken, ControllerMargeInstance.createMarge);
+        router.put('/admins/marges/:id', controllerAdminInstance.verifyToken, ControllerMargeInstance.updateMarge);
+        router.patch('/admins/marges/:id/status', controllerAdminInstance.verifyToken, ControllerMargeInstance.toggleMargeStatus);
+        router.delete('/admin-marges/:id', controllerAdminInstance.verifyToken, ControllerMargeInstance.deleteMarge);
+        router.post('/admins-marges/global', controllerAdminInstance.verifyToken, ControllerMargeInstance.applyGlobalMarge);
 
         router.post('/admine/villeArticle',controllerVilleArticleInstance.createVilleArticle);
-        router.get('/admine/villeArticles',controllerVilleArticleInstance.getAllVilleArticles);
+        router.get('/admine/villeArticles',controllerAdminInstance.verifyToken,controllerVilleArticleInstance.getAllVilleArticles);
         //crud question
         router.post('/admin/question',ControllerquestionBankInstance.createQuestion);
         router.get('/question',ControllerquestionBankInstance.getAllQuestions);
@@ -91,13 +94,21 @@ class Routeadmin {
 
         router.post('/admin-verifyToken',controllerAdminInstance.verifyAdminToken);
 
-        router.get("/admin-statistics",controllerAdminInstance.verifyToken, controllerAdminInstance.getStatistics);
 
         // Ajout des routes pour S3
         router.post('/admine/villeArticle/s3', controllerVilleArticleInstance.createVilleArticleS3);
         router.put('/admine/villeArticle/s3', controllerVilleArticleInstance.updateVilleArticleS3);
 
-     
+        //covering
+        router.get('/covering-admine/:id',controllerAdminInstance.verifyToken,ControllercovringadsInstance.getcoveringadsById)
+        router.put('/covering-admine/active/:id',controllerAdminInstance.verifyToken,ControllercovringadsInstance.ActiveCampaign)
+        router.delete('/covering-admine/:id',controllerAdminInstance.verifyToken,ControllercovringadsInstance.deleteCampaign)
+        router.get('/tour-admine/:id',controllerAdminInstance.verifyToken,ControllerpartenairInstance.tourbypartenaire)
+        router.delete('/tour-admine/:id',controllerAdminInstance.verifyToken,ControllerpartenairInstance.deleteTour)
+        //config publicite
+        router.post('/admin-config-publicite',controllerAdminInstance.verifyToken,ControllerConfigpubliciteInstance.creerConfiguration)
+        router.get('/admin-config-publicite',controllerAdminInstance.verifyToken,ControllerConfigpubliciteInstance.getConfiguration)
+        router.get('/touriste-number-by-matricule/:matricule',controllerAdminInstance.verifyToken,controllerAdminInstance.getTouristeNumberbyMatricule)
     }
 }
 

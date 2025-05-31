@@ -6,7 +6,9 @@
     "start": "node dist/index.js",
     "dev": "ts-node-dev --respawn --transpile-only src/index.ts",
     "build": "tsc",
-    "run:partenaire": "ts-node src/Controlleur/Controllerpartenaire.ts"
+    "run:partenaire": "ts-node src/Controlleur/Controllerpartenaire.ts",
+    "run:mailconfig": "ts-node src/fonction/Mailconfig.ts",
+    "run:mongo": "ts-node src/BDconnection/BDconnection.ts"
   },
   "devDependencies": {
     "@types/bcryptjs": "^2.4.6",

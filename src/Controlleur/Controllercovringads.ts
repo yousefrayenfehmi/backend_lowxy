@@ -3,7 +3,7 @@ import { NextFunction, Request, Response } from "express";
 import { dbConnection } from "../BDconnection/BDconnection";
 import { Touristes } from "../models/Touriste";
 import { Partenaires } from "../models/Partenaire";
-import { upload } from "./Controllerpartenaire";
+import { deleteFromS3, upload } from "./Controllerpartenaire";
 import { CoveringAd}  from "../models/Covering_ads";
 import { uploadToS3 } from "./Controllerpartenaire";
 import { upload as upload2 } from "./Controllerpartenaire";
@@ -64,7 +64,7 @@ export class Controllercovringads {
                                 name: `Publicité ${req.params.nom_societe || ''}`,
                                 description: 'Campagne publicitaire',
                             },
-                            unit_amount:  Math.round(covring.prix * 100), // Conversion en centimes et arrondi
+                            unit_amount:  Math.round(covring.prix * 100), 
                         },
                         quantity: 1,
                     },
@@ -125,7 +125,7 @@ export class Controllercovringads {
           nombre_jour: parseInt(coveringAd.nombre_jour),
           prix: parseFloat(coveringAd.prix)
         },
-        status: coveringAd.status || 'pending',
+        status:  'Pending',
         assigned_taxis: coveringAd.assigned_taxis || []
       });
       
@@ -136,7 +136,7 @@ export class Controllercovringads {
       res.status(200).json({message:'Campagne publicitaire enregistrée avec succès'});
     } catch (error) {
       console.log(error);
-      res.status(500).json({error:error});
+      res.status(500).json({error});
     }
     }
 
@@ -160,7 +160,7 @@ async getAvailableCampaigns(req: Request, res: Response): Promise<void> {
       const min_days = parseInt(req.query.min_days as string) || 0;
       
       // Construire le filtre
-      const filter: any = { status: 'active' };
+      const filter: any = { status: 'Active' };
       
       if (modele) filter['details.modele_voiture'] = modele;
       if (type_covering) filter['details.type_covering'] = type_covering;
@@ -253,7 +253,7 @@ async getAvailableCampaigns(req: Request, res: Response): Promise<void> {
         });
         return;
       }
-      if (campaign.status === 'pending') {
+        if (campaign.status === 'Pending') {
         res.status(400).json({ 
           success: false, 
           message: 'Cette campagne n\'est plus disponible' 
@@ -292,7 +292,7 @@ async getAvailableCampaigns(req: Request, res: Response): Promise<void> {
       
       // Si le nombre requis est atteint, activer la campagne
       if (campaign.assigned_taxis.length >= campaign.details.nombre_taxi) {
-        campaign.status = 'active';
+        campaign.status = 'Active';
       }
       
       await campaign.save();
@@ -330,7 +330,28 @@ async getAvailableCampaigns(req: Request, res: Response): Promise<void> {
       });
     }
   }
-  
+  async getcoveringadsById(req: Request, res: Response): Promise<void> {
+    if (mongoose.connection.readyState !== 1) {
+      await dbConnection.getConnection().catch(error => {
+        res.status(500).json({ error: 'Erreur de connexion à la base de données' });
+        return;
+      });
+    }
+    try {
+      const id = req.params.id;
+      const coveringads = await CoveringAd.find({'creator.id':id});
+      const partenaire=await Partenaires.findById(id);
+      
+      res.status(200).json({covering:coveringads,nom_societe:partenaire?.inforamtion.inforegester.nom_entreprise});
+    } catch (error) {
+      console.error('Erreur lors de la récupération des campagnes:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Erreur lors de la récupération des campagnes',
+        error
+      });
+    }
+  }
   // Méthode pour récupérer les campagnes du taxi connecté
   async getMyCampaigns(req: Request, res: Response): Promise<void> {
     if (mongoose.connection.readyState !== 1) {
@@ -398,7 +419,34 @@ async getAvailableCampaigns(req: Request, res: Response): Promise<void> {
       });
     }
   }
-  
+  async ActiveCampaign(req: Request, res: Response): Promise<void> {
+    if (mongoose.connection.readyState !== 1) {
+      await dbConnection.getConnection().catch(error => {
+        res.status(500).json({ error: 'Erreur de connexion à la base de données' });
+        return;
+      });
+    }
+    try {
+      const id = req.params.id;
+      const campaign = await CoveringAd.findById(id);
+     console.log(campaign);
+     
+      if (campaign) {
+        campaign.status = 'Active';
+        await campaign.save();
+        res.status(200).json(campaign);
+      } else {
+        res.status(404).json({ message: 'Campagne non trouvée' });
+      }
+    } catch (error) {
+      console.error('Erreur lors de l\'activation de la campagne:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Erreur lors de l\'activation de la campagne',
+        error
+      });
+    }
+  }
   // Méthode pour qu'un taxi quitte une campagne
   async leaveCampaign(req: Request, res: Response): Promise<void> {
     if (mongoose.connection.readyState !== 1) {
@@ -455,7 +503,7 @@ async getAvailableCampaigns(req: Request, res: Response): Promise<void> {
       }
       
       // Vérifier si la campagne est active depuis moins de 24h (règle d'exemple)
-      if (campaign.status === 'active') {
+      if (campaign.status === 'Active') {
         const nowDate = new Date();
         const startDate = new Date(); // Utiliser la date actuelle comme approximation
         const timeDiff = Math.abs(nowDate.getTime() - startDate.getTime());
@@ -476,8 +524,8 @@ async getAvailableCampaigns(req: Request, res: Response): Promise<void> {
       );
       
       // Si c'était le dernier taxi, remettre la campagne en attente
-      if (campaign.assigned_taxis.length === 0 && campaign.status === 'active') {
-        campaign.status = 'pending';
+      if (campaign.assigned_taxis.length === 0 && campaign.status === 'Active') {
+        campaign.status = 'Completed';
       }
       
       await campaign.save();
@@ -568,7 +616,7 @@ async getAvailableCampaigns(req: Request, res: Response): Promise<void> {
       
       for (const campaign of expiredCampaigns) {
         // Mettre à jour le statut de la campagne
-        campaign.status = 'completed';
+        campaign.status = 'Completed';
         await campaign.save();
         
         // Pour chaque taxi assigné à la campagne
@@ -591,7 +639,38 @@ async getAvailableCampaigns(req: Request, res: Response): Promise<void> {
       });
     }
   }
+  async deleteCampaign(req: Request, res: Response): Promise<void> {
+    if (mongoose.connection.readyState !== 1) {
+      await dbConnection.getConnection().catch(error => {
+        res.status(500).json({ error: 'Erreur de connexion à la base de données' });
+        return;
+      }); 
+    }
+    try {
+      const id = req.params.id;
+      console.log(id);
+      
+      const campaign = await CoveringAd.findById(id);
+      console.log(campaign);
+      
+      if (!campaign) {
+        res.status(404).json({ message: 'Campagne non trouvée' });
+        return;
+      }
+      await deleteFromS3(campaign.details.image);
+      await campaign.deleteOne();
+      res.status(200).json({ message: 'Campagne supprimée avec succès' });
+    } catch (error) {
+      console.error('Erreur lors de la suppression de la campagne:', error);
+      res.status(500).json({    
+        success: false,
+        message: 'Erreur lors de la suppression de la campagne',
+        error
+      });
+    }
+  }
   
+
   // Méthode pour qu'un taxi signale un problème avec une campagne
   async reportCampaignIssue(req: Request, res: Response): Promise<void> {
     if (mongoose.connection.readyState !== 1) {

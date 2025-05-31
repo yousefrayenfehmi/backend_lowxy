@@ -1,8 +1,9 @@
 import mongoose, { Schema, Document, Types } from "mongoose";
-import IPartenaire from "../Interface/InterfacePartenair";
+import { IPartenaire } from "../Interface/InterfacePartenair";
 
 
 const partenaireSchema = new Schema<IPartenaire>({
+    _id: { type: Schema.Types.ObjectId, required: true },
     inforamtion: {
         inforegester: {
             nom_entreprise: {
@@ -57,7 +58,10 @@ const partenaireSchema = new Schema<IPartenaire>({
                 adultes: Number,    
                 enfants: Number
             },
-            prix: Number,
+            prix: {
+                adulte: { type: Number, required: true },
+                enfant: { type: Number, required: true }
+            },
             supplements: [String],
             reservations: [{
                 client_id: { type: Schema.Types.ObjectId, ref: 'Client' },

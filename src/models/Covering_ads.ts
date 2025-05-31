@@ -19,7 +19,7 @@ const CoveringAdSchema: Schema = new Schema({
   },
   status: { 
     type: String, 
-    enum: ['active', 'completed', 'annuler', 'pending'],
+    enum: ['Active', 'Completed',  'Pending'],
     default: 'pending'
   },
   assigned_taxis: [{ type: Schema.Types.ObjectId, ref: 'Taxi' }],

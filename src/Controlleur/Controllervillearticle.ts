@@ -6,8 +6,6 @@ import multer from "multer";
 import * as fs from "fs";
 import * as path from "path";
 import { uploadToS3 } from "./Controllerpartenaire";
-import AWS from 'aws-sdk';
-
 // Configuration pour S3
 const s3Config = {
   region: process.env.AWS_REGION || 'eu-west-3',
@@ -178,110 +176,97 @@ class ControllerVilleArticle {
     
                 // Traitement des photos et vidéos principales de la ville
                 if (files && files.length > 0) {
-                    files.forEach(file => {
-                        const filename = file.filename;
-                        const filePath = file.path.replace(/\\/g, '/'); // Normaliser les chemins
-    
+                    for (const file of files) {
+                        const filePath = file.path.replace(/\\/g, '/');
                         if (file.fieldname.startsWith('ville_photo_')) {
-                            medias.photos.push(filePath);
+                            const fileUrl = await uploadToS3(file, filePath);
+                            medias.photos.push(fileUrl);
                         } else if (file.fieldname.startsWith('ville_video_')) {
-                            medias.videos.push(filePath);
+                            const fileUrl = await uploadToS3(file, filePath);
+                            medias.videos.push(fileUrl);
                         }
-                    });
-    
+                    }
                     // Ajout des chemins de médias à l'objet articleData
                     articleData.medias = medias;
-    
+
                     // Traitement des photos des lieux touristiques
                     if (articleData.contenu && articleData.contenu.lieux_touristiques) {
-                        articleData.contenu.lieux_touristiques = articleData.contenu.lieux_touristiques.map((lieu: any, index: number) => {
-                            lieu.photo = {
-                                photo_principale: existingArticle.contenu?.lieux_touristiques?.[index]?.photo?.photo_principale || null,
-                                galerie_photos: [...(existingArticle.contenu?.lieux_touristiques?.[index]?.photo?.galerie_photos || [])]
-                            };
-    
-                            // Rechercher la photo principale
+                        const newLieux = [];
+                        for (let index = 0; index < articleData.contenu.lieux_touristiques.length; index++) {
+                            const lieu = articleData.contenu.lieux_touristiques[index];
+                            lieu.photo = { photo_principale: null, galerie_photos: [] };
                             const photoFile = files.find(file => file.fieldname === `lieu_${index}_photo_principale`);
                             if (photoFile) {
-                                lieu.photo.photo_principale = photoFile.path.replace(/\\/g, '/');
+                                const fileUrl = await uploadToS3(photoFile, photoFile.path.replace(/\\/g, '/'));
+                                lieu.photo.photo_principale = fileUrl;
                             }
-    
-                            // Rechercher les photos de galerie
-                            files.filter(file => file.fieldname.startsWith(`lieu_${index}_photo_galerie_`))
-                                .forEach(file => {
-                                    lieu.photo.galerie_photos.push(file.path.replace(/\\/g, '/'));
-                                });
-    
-                            return lieu;
-                        });
+                            for (const file of files.filter(file => file.fieldname.startsWith(`lieu_${index}_photo_galerie_`))) {
+                                const fileUrl = await uploadToS3(file, file.path.replace(/\\/g, '/'));
+                                lieu.photo.galerie_photos.push(fileUrl);
+                            }
+                            newLieux.push(lieu);
+                        }
+                        articleData.contenu.lieux_touristiques = newLieux;
                     }
-    
+
                     // Traitement des photos de gastronomie
                     if (articleData.contenu && articleData.contenu.gastronomie) {
-                        articleData.contenu.gastronomie = articleData.contenu.gastronomie.map((plat: any, index: number) => {
-                            plat.photo = {
-                                photo_principale: existingArticle.contenu?.gastronomie?.[index]?.photo?.photo_principale || null,
-                                galerie_photos: [...(existingArticle.contenu?.gastronomie?.[index]?.photo?.galerie_photos || [])]
-                            };
-    
-                            // Rechercher la photo principale
+                        const newGastro = [];
+                        for (let index = 0; index < articleData.contenu.gastronomie.length; index++) {
+                            const plat = articleData.contenu.gastronomie[index];
+                            plat.photo = { photo_principale: null, galerie_photos: [] };
                             const photoFile = files.find(file => file.fieldname === `gastro_${index}_photo_principale`);
                             if (photoFile) {
-                                plat.photo.photo_principale = photoFile.path.replace(/\\/g, '/');
+                                const fileUrl = await uploadToS3(photoFile, photoFile.path.replace(/\\/g, '/'));
+                                plat.photo.photo_principale = fileUrl;
                             }
-    
-                            // Rechercher les photos de galerie
-                            files.filter(file => file.fieldname.startsWith(`gastro_${index}_photo_galerie_`))
-                                .forEach(file => {
-                                    plat.photo.galerie_photos.push(file.path.replace(/\\/g, '/'));
-                                });
-    
-                            return plat;
-                        });
+                            for (const file of files.filter(file => file.fieldname.startsWith(`gastro_${index}_photo_galerie_`))) {
+                                const fileUrl = await uploadToS3(file, file.path.replace(/\\/g, '/'));
+                                plat.photo.galerie_photos.push(fileUrl);
+                            }
+                            newGastro.push(plat);
+                        }
+                        articleData.contenu.gastronomie = newGastro;
                     }
-    
+
                     // Traitement similaire pour les hôtels
                     if (articleData.informations_pratiques && articleData.informations_pratiques.hotels_recommandes) {
-                        articleData.informations_pratiques.hotels_recommandes = articleData.informations_pratiques.hotels_recommandes.map((hotel: any, index: number) => {
-                            hotel.photos = {
-                                photo_principale: existingArticle.informations_pratiques?.hotels_recommandes?.[index]?.photos?.photo_principale || null,
-                                galerie_photos: [...(existingArticle.informations_pratiques?.hotels_recommandes?.[index]?.photos?.galerie_photos || [])]
-                            };
-    
+                        const newHotels = [];
+                        for (let index = 0; index < articleData.informations_pratiques.hotels_recommandes.length; index++) {
+                            const hotel = articleData.informations_pratiques.hotels_recommandes[index];
+                            hotel.photos = { photo_principale: null, galerie_photos: [] };
                             const photoFile = files.find(file => file.fieldname === `hotel_${index}_photo_principale`);
                             if (photoFile) {
-                                hotel.photos.photo_principale = photoFile.path.replace(/\\/g, '/');
+                                const fileUrl = await uploadToS3(photoFile, photoFile.path.replace(/\\/g, '/'));
+                                hotel.photos.photo_principale = fileUrl;
                             }
-    
-                            files.filter(file => file.fieldname.startsWith(`hotel_${index}_photo_galerie_`))
-                                .forEach(file => {
-                                    hotel.photos.galerie_photos.push(file.path.replace(/\\/g, '/'));
-                                });
-    
-                            return hotel;
-                        });
+                            for (const file of files.filter(file => file.fieldname.startsWith(`hotel_${index}_photo_galerie_`))) {
+                                const fileUrl = await uploadToS3(file, file.path.replace(/\\/g, '/'));
+                                hotel.photos.galerie_photos.push(fileUrl);
+                            }
+                            newHotels.push(hotel);
+                        }
+                        articleData.informations_pratiques.hotels_recommandes = newHotels;
                     }
-    
+
                     // Traitement similaire pour les restaurants
                     if (articleData.informations_pratiques && articleData.informations_pratiques.restaurants_recommandes) {
-                        articleData.informations_pratiques.restaurants_recommandes = articleData.informations_pratiques.restaurants_recommandes.map((restaurant: any, index: number) => {
-                            restaurant.photos = {
-                                photo_principale: existingArticle.informations_pratiques?.restaurants_recommandes?.[index]?.photos?.photo_principale || null,
-                                galerie_photos: [...(existingArticle.informations_pratiques?.restaurants_recommandes?.[index]?.photos?.galerie_photos || [])]
-                            };
-    
+                        const newRestaurants = [];
+                        for (let index = 0; index < articleData.informations_pratiques.restaurants_recommandes.length; index++) {
+                            const restaurant = articleData.informations_pratiques.restaurants_recommandes[index];
+                            restaurant.photos = { photo_principale: null, galerie_photos: [] };
                             const photoFile = files.find(file => file.fieldname === `restaurant_${index}_photo_principale`);
                             if (photoFile) {
-                                restaurant.photos.photo_principale = photoFile.path.replace(/\\/g, '/');
+                                const fileUrl = await uploadToS3(photoFile, photoFile.path.replace(/\\/g, '/'));
+                                restaurant.photos.photo_principale = fileUrl;
                             }
-    
-                            files.filter(file => file.fieldname.startsWith(`restaurant_${index}_photo_galerie_`))
-                                .forEach(file => {
-                                    restaurant.photos.galerie_photos.push(file.path.replace(/\\/g, '/'));
-                                });
-    
-                            return restaurant;
-                        });
+                            for (const file of files.filter(file => file.fieldname.startsWith(`restaurant_${index}_photo_galerie_`))) {
+                                const fileUrl = await uploadToS3(file, file.path.replace(/\\/g, '/'));
+                                restaurant.photos.galerie_photos.push(fileUrl);
+                            }
+                            newRestaurants.push(restaurant);
+                        }
+                        articleData.informations_pratiques.restaurants_recommandes = newRestaurants;
                     }
                 }
     
@@ -312,8 +297,8 @@ class ControllerVilleArticle {
     }
 
     async createVilleArticle(req: Request, res: Response): Promise<void> {
-        // Utiliser multer pour gérer les fichiers
-        upload(req, res, async (err) => {
+        // Utiliser multer pour gérer les fichiers en mémoire (pour S3)
+        uploadMemory(req, res, async (err) => {
             if (err) {
                 console.error('Erreur lors de l\'upload des fichiers:', err);
                 res.status(400).json({ error: 'Erreur lors de l\'upload des fichiers' });
@@ -345,110 +330,106 @@ class ControllerVilleArticle {
                 
                 // Traitement des photos et vidéos principales de la ville
                 if (files && files.length > 0) {
-                    files.forEach(file => {
-                        const filename = file.filename;
-                        const filePath = file.path.replace(/\\/g, '/'); // Normaliser les chemins
-                        
+                    for (const file of files) {
                         if (file.fieldname.startsWith('ville_photo_')) {
-                            medias.photos.push(filePath);
+                            const destination = `ville-articles/${articleData.ville.nom}/photos/${file.fieldname}-${Date.now()}${path.extname(file.originalname)}`;
+                            const fileUrl = await uploadToS3(file, destination);
+                            medias.photos.push(fileUrl);
                         } else if (file.fieldname.startsWith('ville_video_')) {
-                            medias.videos.push(filePath);
+                            const destination = `ville-articles/${articleData.ville.nom}/videos/${file.fieldname}-${Date.now()}${path.extname(file.originalname)}`;
+                            const fileUrl = await uploadToS3(file, destination);
+                            medias.videos.push(fileUrl);
                         }
-                    });
-                    
+                    }
                     // Ajout des chemins de médias à l'objet articleData
                     articleData.medias = medias;
-                    
+
                     // Traitement des photos des lieux touristiques
                     if (articleData.contenu && articleData.contenu.lieux_touristiques) {
-                        articleData.contenu.lieux_touristiques = articleData.contenu.lieux_touristiques.map((lieu: any, index: number) => {
-                            lieu.photo = {
-                                photo_principale: null,
-                                galerie_photos: []
-                            };
-                            
-                            // Rechercher la photo principale
+                        const newLieux = [];
+                        for (let index = 0; index < articleData.contenu.lieux_touristiques.length; index++) {
+                            const lieu = articleData.contenu.lieux_touristiques[index];
+                            lieu.photo = { photo_principale: null, galerie_photos: [] };
                             const photoFile = files.find(file => file.fieldname === `lieu_${index}_photo_principale`);
                             if (photoFile) {
-                                lieu.photo.photo_principale = photoFile.path.replace(/\\/g, '/');
+                                const destination = `ville-articles/${articleData.ville.nom}/lieux/principale/${photoFile.fieldname}-${Date.now()}${path.extname(photoFile.originalname)}`;
+                                const fileUrl = await uploadToS3(photoFile, destination);
+                                lieu.photo.photo_principale = fileUrl;
                             }
-                            
-                            // Rechercher les photos de galerie
-                            files.filter(file => file.fieldname.startsWith(`lieu_${index}_photo_galerie_`))
-                                .forEach(file => {
-                                    lieu.photo.galerie_photos.push(file.path.replace(/\\/g, '/'));
-                                });
-                            
-                            return lieu;
-                        });
+                            for (const file of files.filter(file => file.fieldname.startsWith(`lieu_${index}_photo_galerie_`))) {
+                                const destination = `ville-articles/${articleData.ville.nom}/lieux/galerie/${file.fieldname}-${Date.now()}${path.extname(file.originalname)}`;
+                                const fileUrl = await uploadToS3(file, destination);
+                                lieu.photo.galerie_photos.push(fileUrl);
+                            }
+                            newLieux.push(lieu);
+                        }
+                        articleData.contenu.lieux_touristiques = newLieux;
                     }
-                    
+
                     // Traitement des photos de gastronomie
                     if (articleData.contenu && articleData.contenu.gastronomie) {
-                        articleData.contenu.gastronomie = articleData.contenu.gastronomie.map((plat: any, index: number) => {
-                            plat.photo = {
-                                photo_principale: null,
-                                galerie_photos: []
-                            };
-                            
-                            // Rechercher la photo principale
+                        const newGastro = [];
+                        for (let index = 0; index < articleData.contenu.gastronomie.length; index++) {
+                            const plat = articleData.contenu.gastronomie[index];
+                            plat.photo = { photo_principale: null, galerie_photos: [] };
                             const photoFile = files.find(file => file.fieldname === `gastro_${index}_photo_principale`);
                             if (photoFile) {
-                                plat.photo.photo_principale = photoFile.path.replace(/\\/g, '/');
+                                const destination = `ville-articles/${articleData.ville.nom}/gastronomie/principale/${photoFile.fieldname}-${Date.now()}${path.extname(photoFile.originalname)}`;
+                                const fileUrl = await uploadToS3(photoFile, destination);
+                                plat.photo.photo_principale = fileUrl;
                             }
-                            
-                            // Rechercher les photos de galerie
-                            files.filter(file => file.fieldname.startsWith(`gastro_${index}_photo_galerie_`))
-                                .forEach(file => {
-                                    plat.photo.galerie_photos.push(file.path.replace(/\\/g, '/'));
-                                });
-                            
-                            return plat;
-                        });
+                            for (const file of files.filter(file => file.fieldname.startsWith(`gastro_${index}_photo_galerie_`))) {
+                                const destination = `ville-articles/${articleData.ville.nom}/gastronomie/galerie/${file.fieldname}-${Date.now()}${path.extname(file.originalname)}`;
+                                const fileUrl = await uploadToS3(file, destination);
+                                plat.photo.galerie_photos.push(fileUrl);
+                            }
+                            newGastro.push(plat);
+                        }
+                        articleData.contenu.gastronomie = newGastro;
                     }
-                    
+
                     // Traitement similaire pour les hôtels
                     if (articleData.informations_pratiques && articleData.informations_pratiques.hotels_recommandes) {
-                        articleData.informations_pratiques.hotels_recommandes = articleData.informations_pratiques.hotels_recommandes.map((hotel: any, index: number) => {
-                            hotel.photos = {
-                                photo_principale: null,
-                                galerie_photos: []
-                            };
-                            
+                        const newHotels = [];
+                        for (let index = 0; index < articleData.informations_pratiques.hotels_recommandes.length; index++) {
+                            const hotel = articleData.informations_pratiques.hotels_recommandes[index];
+                            hotel.photos = { photo_principale: null, galerie_photos: [] };
                             const photoFile = files.find(file => file.fieldname === `hotel_${index}_photo_principale`);
                             if (photoFile) {
-                                hotel.photos.photo_principale = photoFile.path.replace(/\\/g, '/');
+                                const destination = `ville-articles/${articleData.ville.nom}/hotels/principale/${photoFile.fieldname}-${Date.now()}${path.extname(photoFile.originalname)}`;
+                                const fileUrl = await uploadToS3(photoFile, destination);
+                                hotel.photos.photo_principale = fileUrl;
                             }
-                            
-                            files.filter(file => file.fieldname.startsWith(`hotel_${index}_photo_galerie_`))
-                                .forEach(file => {
-                                    hotel.photos.galerie_photos.push(file.path.replace(/\\/g, '/'));
-                                });
-                            
-                            return hotel;
-                        });
+                            for (const file of files.filter(file => file.fieldname.startsWith(`hotel_${index}_photo_galerie_`))) {
+                                const destination = `ville-articles/${articleData.ville.nom}/hotels/galerie/${file.fieldname}-${Date.now()}${path.extname(file.originalname)}`;
+                                const fileUrl = await uploadToS3(file, destination);
+                                hotel.photos.galerie_photos.push(fileUrl);
+                            }
+                            newHotels.push(hotel);
+                        }
+                        articleData.informations_pratiques.hotels_recommandes = newHotels;
                     }
-                    
+
                     // Traitement similaire pour les restaurants
                     if (articleData.informations_pratiques && articleData.informations_pratiques.restaurants_recommandes) {
-                        articleData.informations_pratiques.restaurants_recommandes = articleData.informations_pratiques.restaurants_recommandes.map((restaurant: any, index: number) => {
-                            restaurant.photos = {
-                                photo_principale: null,
-                                galerie_photos: []
-                            };
-                            
+                        const newRestaurants = [];
+                        for (let index = 0; index < articleData.informations_pratiques.restaurants_recommandes.length; index++) {
+                            const restaurant = articleData.informations_pratiques.restaurants_recommandes[index];
+                            restaurant.photos = { photo_principale: null, galerie_photos: [] };
                             const photoFile = files.find(file => file.fieldname === `restaurant_${index}_photo_principale`);
                             if (photoFile) {
-                                restaurant.photos.photo_principale = photoFile.path.replace(/\\/g, '/');
+                                const destination = `ville-articles/${articleData.ville.nom}/restaurants/principale/${photoFile.fieldname}-${Date.now()}${path.extname(photoFile.originalname)}`;
+                                const fileUrl = await uploadToS3(photoFile, destination);
+                                restaurant.photos.photo_principale = fileUrl;
                             }
-                            
-                            files.filter(file => file.fieldname.startsWith(`restaurant_${index}_photo_galerie_`))
-                                .forEach(file => {
-                                    restaurant.photos.galerie_photos.push(file.path.replace(/\\/g, '/'));
-                                });
-                            
-                            return restaurant;
-                        });
+                            for (const file of files.filter(file => file.fieldname.startsWith(`restaurant_${index}_photo_galerie_`))) {
+                                const destination = `ville-articles/${articleData.ville.nom}/restaurants/galerie/${file.fieldname}-${Date.now()}${path.extname(file.originalname)}`;
+                                const fileUrl = await uploadToS3(file, destination);
+                                restaurant.photos.galerie_photos.push(fileUrl);
+                            }
+                            newRestaurants.push(restaurant);
+                        }
+                        articleData.informations_pratiques.restaurants_recommandes = newRestaurants;
                     }
                 }
                 
@@ -899,35 +880,7 @@ class ControllerVilleArticle {
         });
     }
 
-    // Méthode utilitaire pour supprimer un fichier de S3
-    async deleteFileFromS3(fileUrl: string): Promise<boolean> {
-        try {
-            // Initialiser le client S3
-            const s3 = new AWS.S3({
-                region: s3Config.region,
-                accessKeyId: process.env.AWS_ACCESS_KEY_ID,
-                secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY
-            });
-
-            // Extraire le chemin S3 depuis l'URL
-            const urlParts = new URL(fileUrl);
-            const s3Path = urlParts.pathname.substring(1); // Enlever le slash initial
-            
-            // Paramètres pour la suppression
-            const params = {
-                Bucket: s3Config.bucketName,
-                Key: s3Path
-            };
-
-            // Supprimer l'objet de S3
-            await s3.deleteObject(params).promise();
-            console.log(`Fichier supprimé avec succès: ${fileUrl}`);
-            return true;
-        } catch (error) {
-            console.error(`Erreur lors de la suppression du fichier S3: ${fileUrl}`, error);
-            return false;
-        }
-    }
+    
 }
 
 export const controllerVilleArticleInstance = new ControllerVilleArticle();

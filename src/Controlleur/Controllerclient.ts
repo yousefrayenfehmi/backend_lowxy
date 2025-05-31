@@ -269,7 +269,8 @@ async uploadfacture(req: Request, res: Response): Promise<void> {
                 message: 'email envoyé avec success'
             });
         } catch (error) {
-            res.status(500).json({ error: 'Erreur lors de l\'envoi du mail de réinitialisation' });
+
+            res.status(500).json({ error: "Erreur lors de l'envoi du mail de réinitialisation", errors: error });
         }
     }
 
@@ -783,9 +784,7 @@ async authavecfacebook(req: Request, res: Response): Promise<void> {
             res.status(500).json({ error: 'Erreur lors de la récupération du touriste' });
         }
     }
-
-
-
+   
 
 
 }

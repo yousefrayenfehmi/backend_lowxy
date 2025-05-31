@@ -58,6 +58,24 @@ const s3 = new S3({
   }
 };
 
+export const deleteFromS3 = async (fileUrl: string): Promise<void> => {
+  try {
+    const urlParts = new URL(fileUrl);
+    const s3Path = urlParts.pathname.substring(1); 
+    
+    const params = {
+      Bucket: 'lowxysas',
+      Key: s3Path
+    };
+
+    await s3.deleteObject(params).promise();
+    console.log(`File deleted successfully from S3: ${fileUrl}`);
+  } catch (error) {
+    console.error('Error deleting file from S3:', error);
+    throw error;
+  }
+};
+
 class ControllerPartenaire {
     constructor(){
         dotenv.config({ path: path.resolve(__dirname, '../../.env') });
@@ -142,7 +160,6 @@ class ControllerPartenaire {
             res.status(500).json({ error: error });
         }
     }
-    
     
     
 
@@ -300,7 +317,7 @@ class ControllerPartenaire {
                         name: `Publicité ${req.params.nom_societe || ''}`,
                         description: 'Campagne publicitaire',
                       },
-                      unit_amount: Math.round(budgetAmount * 100), // Conversion en centimes et arrondi
+                      unit_amount: Math.round(budgetAmount * 100), 
                     },
                     quantity: 1,
                   },
@@ -349,13 +366,13 @@ class ControllerPartenaire {
         console.log('hhhhhhhhhhhhhhhhhhhh active' );
         
         // Trouver tous les partenaires avec des pub_quiz actives
-        const partenaires = await Partenaires.find({'pub_quiz.statu': 'active'});
+        const partenaires = await Partenaires.find({'pub_quiz.statu': 'Active'});
         console.log(partenaires);
         
         const pubsQuizActives = [];
         
         for (const partenaire of partenaires) {
-          const pubsActives = partenaire.pub_quiz.filter(quiz => quiz.statu === 'active');
+          const pubsActives = partenaire.pub_quiz.filter(quiz => quiz.statu === 'Active');
           pubsQuizActives.push(...pubsActives);
         }
         
@@ -366,26 +383,8 @@ class ControllerPartenaire {
       }
     }
 
-async covringsave(req: Request, res: Response){
-    if (mongoose.connection.readyState !== 1) {
-        await dbConnection.getConnection().catch(error => {
-            res.status(500).json({ error: 'Erreur de connexion à la base de données' });
-            return;
-        });
-    }
-    try {
-        const id = req.user;
-        const data =req.body.data;
-        console.log("data"+data);
-        const partenaire = await Partenaires.findOne({'_id': id});
-        partenaire?.covering_ads.push(data);
-        await partenaire?.save();
-        res.status(200).json(partenaire);
-    } catch (error) {
-        console.log(error);
-        res.status(500).json({ error: error });
-}
-}
+
+
 async Pubsauvgarde(req: Request, res: Response): Promise<void> {
     if (mongoose.connection.readyState !== 1) {
         await dbConnection.getConnection().catch(error => {
@@ -398,10 +397,8 @@ async Pubsauvgarde(req: Request, res: Response): Promise<void> {
         console.log('hhhhhhhhhhhhhhhhhhhh');
         
         const id = req.user;
-        const data =req.body.data;
+        const data = req.body.data;
         console.log("data"+data);
-        
-  // Ou option 2: Passez l'objet directement (sans concaténation)
         
         const pub = await Partenaires.findOne({'_id': id});
         pub?.pub_quiz.push(data);
@@ -413,6 +410,27 @@ async Pubsauvgarde(req: Request, res: Response): Promise<void> {
         res.status(500).json({ error: error });
     }
 }
+
+async covringsave(req: Request, res: Response): Promise<void> {
+    if (mongoose.connection.readyState !== 1) {
+        await dbConnection.getConnection().catch(error => {
+            res.status(500).json({ error: 'Erreur de connexion à la base de données' });
+            return;
+        });
+    }
+    try {
+        const id = req.user;
+        const data = req.body.data;
+        console.log("data"+data);
+        const partenaire = await Partenaires.findOne({'_id': id});
+        await partenaire?.save();
+        res.status(200).json(partenaire);
+    } catch (error) {
+        console.log(error);
+        res.status(500).json({ error: error });
+    }
+}
+
 async pubetatchanger(req: Request, res: Response): Promise<void> {
     if (mongoose.connection.readyState !== 1) {
         await dbConnection.getConnection().catch(error => {
@@ -423,21 +441,23 @@ async pubetatchanger(req: Request, res: Response): Promise<void> {
 
     try {    
         const id = req.params.id;
+        console.log('id'+id);
+        
         const objectIdFromString = new ObjectId(id);
-        const pub = await Partenaires.findOne({'pub_quiz._id': id});
-
+        const pub = await Partenaires.findOne({'pub_quiz._id': objectIdFromString});
+        console.log(pub);
+        
+        console.log('mazelet mactivetch');
+        
         if (pub) {
              pub.pub_quiz.filter(quiz => {
               // Convert both to strings before comparing
-              if(quiz._id.toString() === objectIdFromString.toString()){
+              if(quiz._id?.toString() === objectIdFromString.toString()){
                 if(quiz.statu === 'En attente de validation'){
+                    console.log('rahi active sayer');
+                    
                     quiz.statu = 'Active'}
-                else if(quiz.statu === 'Active'){
-                    quiz.statu = 'Pause'
-                }
-                else if(quiz.statu === 'Pause'){
-                    quiz.statu = 'Active'
-                }    
+                 
               } 
             });
             await pub.save();
@@ -453,6 +473,97 @@ async pubetatchanger(req: Request, res: Response): Promise<void> {
         res.status(500).json({ error: error });
     }
 }
+async tourbypartenaire(req: Request, res: Response): Promise<void> {
+    if (mongoose.connection.readyState !== 1) {
+        await dbConnection.getConnection().catch(error => {
+            res.status(500).json({ error: 'Erreur de connexion à la base de données' });
+            return;
+        });
+    }
+    try {
+        const id = req.params.id;
+        const partenaire = await Partenaires.findById(id);
+        if (!partenaire) {
+            res.status(404).json({ error: 'Partenaire non trouvé' });
+            return;
+        }
+        const tours = partenaire.tours;
+        res.status(200).json({tours:tours,nom_societe:partenaire.inforamtion.inforegester.nom_entreprise});
+    } catch (error) {
+        console.log(error);
+        res.status(500).json({ error: error });
+    }
+}
+
+async deleteTour(req: Request, res: Response): Promise<void> {
+    if (mongoose.connection.readyState !== 1) {
+        await dbConnection.getConnection().catch(error => {
+            res.status(500).json({ error: 'Erreur de connexion à la base de données' });
+            return;
+        });
+    }
+    try {
+        const id = req.params.id;
+        const partenaire = await Partenaires.findOne({ 'tours._id': id });
+        if (!partenaire) {
+            res.status(404).json({ error: 'tour non trouvé' });
+            return;
+        }
+        const tour = partenaire.tours.find(tour => tour._id?.toString() === id);
+        for (const image of tour?.images || []) {
+            await deleteFromS3(image);
+        }
+        partenaire.tours = partenaire.tours.filter(tour => tour._id?.toString() !== id);
+        await partenaire.save();
+        
+        res.status(200).json({ message: 'Tour supprimé avec succès' });
+    } catch (error) {
+        console.log(error);
+        res.status(500).json({ error: error });
+    }
+}
+async deletepubquiz(req: Request, res: Response): Promise<void> {
+    if (mongoose.connection.readyState !== 1) {
+        await dbConnection.getConnection().catch(error => {
+            res.status(500).json({ error: 'Erreur de connexion à la base de données' });
+            return;
+        });
+    }
+
+    try {
+        const id = req.params.id;
+        const partenaire = await Partenaires.findOne({ 'pub_quiz._id': id });
+        
+        if (!partenaire) {
+            res.status(404).json({ error: 'Publicité non trouvée' });
+            return;
+        }
+
+        // Trouver la publicité à supprimer
+        const pubquiz = partenaire.pub_quiz.find(quiz => quiz._id?.toString() === id);
+        
+        if (pubquiz) {
+            // Supprimer les fichiers de S3
+            for (const banner of pubquiz.bannieres) {
+                await deleteFromS3(banner);
+            }
+            for (const video of pubquiz.videos) {
+                await deleteFromS3(video);
+            }
+            
+
+            // Supprimer la publicité du tableau pub_quiz
+            partenaire.pub_quiz = partenaire.pub_quiz.filter(quiz => quiz._id?.toString() !== id);
+            await partenaire.save();
+        }
+
+        res.status(200).json({ message: 'Publicité supprimée avec succès' });
+    } catch (error) {
+        console.log(error);
+        res.status(500).json({ error: error });
+    }
+}
+
     async Signup(req: Request, res: Response): Promise<void> {
         if (mongoose.connection.readyState !== 1) {
             await dbConnection.getConnection().catch(error => {
@@ -751,13 +862,14 @@ async pubetatchanger(req: Request, res: Response): Promise<void> {
             partenaire.resetPasswordToken = resetToken;
             partenaire.resetPasswordTokenExpire = resetTokenExpiresAt;
             await partenaire.save();
-            await Fonction.sendmail(email, 'password', resetToken);
+            await Fonction.sendmail(email, 'password', process.env.front_end+"/changepassword/" + resetToken);
             res.status(200).json({
                 success: true,
                 message: 'Email envoyé avec succès'
             });
         } catch (error) {
-            res.status(500).json({ error: 'Erreur lors de l\'envoi du mail de réinitialisation' });
+            console.log(error);
+            res.status(500).json({ error: "Erreur lors de l'envoi du mail de réinitialisation", errors: error });
         } 
     }
 
@@ -789,6 +901,7 @@ async pubetatchanger(req: Request, res: Response): Promise<void> {
 
             res.status(200).json({ success: true, message: "Mot de passe réinitialisé avec succès" });
         } catch (error) {
+            console.log(error);
             res.status(500).json({ error: 'Erreur lors de la réinitialisation du mot de passe' });
         } 
     }

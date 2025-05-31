@@ -223,6 +223,8 @@ class MargeController {
 
         try {
             const { id } = req.params;
+            console.log('je lena sayer');
+            
             const marge = await Marge.findByIdAndDelete(id);
             if (!marge) {
                 res.status(404).json({ 

@@ -1,6 +1,6 @@
-import { Types } from "mongoose";
+import { Document, Types } from "mongoose";
 
-interface IPartenaire extends Document {
+export interface IPartenaire extends Document {
     _id: Types.ObjectId;
     inforamtion: {
         inforegester: {
@@ -12,15 +12,16 @@ interface IPartenaire extends Document {
         };
         info_societe: {
             numero_serie?: string;
-            domaines: string[];
+            domaines?: string[];
             adresse: {
-                pays: string;
-                ville: string;
-                rue: string;
+                pays?: string;
+                ville?: string;
+                rue?: string;
             };
         };
     };
     tours: Array<{
+        _id?: Types.ObjectId;
         nom: string;
         description: string;
         ville: string;
@@ -30,50 +31,59 @@ interface IPartenaire extends Document {
             arrivee: string;
             plan: string;
         };
+        images: string[];
         jours: Array<{
+            _id?: Types.ObjectId;
             date: Date;
             depart: string;
             capacite: {
                 adultes: number;
                 enfants: number;
             };
-            prix: number;
-            supplements: string[];
-        }>;
-        reservations: Array<{
-            client_id: Types.ObjectId;
-            date: Date;
-            participants: {
-                adultes: number;
-                enfants: number;
+            prix: {
+                adulte: number;
+                enfant: number;
             };
-            prix_total: number;
+            supplements: string[];
+            reservations: Array<{
+                _id?: Types.ObjectId;
+                client_id: Types.ObjectId;
+                date: Date;
+                participants: {
+                    adultes: number;
+                    enfants: number;
+                };
+                prix_total: number;
+                statut: 'en attente de paiement' | 'confirmée' | 'annulée';
+                payment_id?: string;
+                payment_date?: Date;
+            }>;
         }>;
     }>;
     covering_ads: Array<{
-        _id: Types.ObjectId;
+        _id?: Types.ObjectId;
+        image: string;
         modele_voiture: string;
         type_covering: string;
-        image: string;
         nombre_taxi: number;
         nombre_jour: number;
         prix: number;
     }>;
     pub_quiz: Array<{
-        _id: Types.ObjectId;
+        _id?: Types.ObjectId;
         bannieres: string[];
         videos: string[];
         call_to_action: string[];
-        keywords: string[];
+        keywords: any[];
         periode: {
             debut: Date;
             fin: Date;
         };
-        statu: string;
         Budget_totale: number;
+        statu: string;
         impressions: number;
         clicks: number;
-        facturation: string;
+        facturation?: string;
     }>;
     securites: {
         code?: string;
@@ -82,8 +92,4 @@ interface IPartenaire extends Document {
     };
     resetPasswordToken?: string;
     resetPasswordTokenExpire?: Date;
-    createdAt: Date;
-    updatedAt: Date;
 }
-
-export default IPartenaire;

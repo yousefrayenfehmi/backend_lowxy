@@ -353,6 +353,9 @@ class TourController {
         try {
             // Récupérer tous les partenaires avec leurs tours
             const partenaires = await Partenaires.find({}, 'inforamtion.inforegester.nom_entreprise tours');
+            for (const partenaire of partenaires) {
+                console.log(partenaire.tours);
+            }
             
             // Construire un tableau avec tous les tours et le nom du partenaire associé
             const allTours: Array<any> = [];
@@ -360,7 +363,7 @@ class TourController {
             partenaires.forEach(partenaire => {
                 partenaire.tours.forEach((tour: any) => {
                     allTours.push({
-                        tourId: tour._id,
+                        _id: tour._id,
                         partenaireId: partenaire._id,
                         partenaireNom: partenaire.inforamtion.inforegester.nom_entreprise,
                         nom: tour.nom,
