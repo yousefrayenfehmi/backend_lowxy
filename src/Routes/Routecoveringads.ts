@@ -41,6 +41,8 @@ class Routecoveringads {
         // Route pour déplacer les campagnes terminées vers l'historique
            // Route pour compléter automatiquement les campagnes expirées
    router.post('/complete-campaigns', VerifierTokenInstance.verifyToken, ControllercovringadsInstance.Capaigns_complete);
+
+   // Route pour récupérer les campagnes disponibles
     }
 }
 

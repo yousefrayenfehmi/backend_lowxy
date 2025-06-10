@@ -3,58 +3,58 @@ import { NextFunction, Request, Response } from "express";
 import { dbConnection } from "../BDconnection/BDconnection";
 import { Touristes } from "../models/Touriste";
 import { Partenaires } from "../models/Partenaire";
-import { upload } from "./Controllerpartenaire";
+import { deleteFromS3, upload } from "./Controllerpartenaire";
 import { CoveringAd}  from "../models/Covering_ads";
+import { uploadToS3 } from "./Controllerpartenaire";
+import { upload as upload2 } from "./Controllerpartenaire";
 import mongoose, { Types } from "mongoose";
 import Stripe from "stripe";
 import { ICoveringAd } from "../Interface/InterfaceCovering_ads";
 import Fonction from "../fonction/Fonction";
 import { Emailtemplates } from "../fonction/EmailTemplates";
 import { log } from "console";
+import path from "path";
+import { Admin } from "../models/Admin";
 const stripe = new Stripe('sk_test_51RAG0WQ4fzXaDh6qqaSa4kETsLitTt3nAHAnaPoodCOrgstRL0puvbFYG6KoruYmawEgL3o8NJ5DmywcApPS2NjH00FKdOaX9O');
 export class Controllercovringads {
 
     paidcovering(req: Request, res: Response): void {
-        upload(req, res, async (err) => {
-            if (err) {
-                console.error('Erreur multer:', err);
-                res.status(400).json({ message: 'Erreur lors de l\'upload des fichiers: ' + err.message });
-                return;
-            }
-            //recuperer les fichiers uploadés
-            const files = req.files as { [fieldname: string]: Express.Multer.File[] };
-            //verifier s'il y a des fichiers
-            if (!files || (!files['covering'] || files['covering'].length === 0)) {
-                res.status(400).json({ message: 'Aucun fichier image ou vidéo envoyé' });
-                return;
-            }
-            console.log(req.body);
+      upload(req, res, async (err) => {
+        if (err) {
+            console.error('Erreur multer:', err);
+            res.status(400).json({ message: 'Erreur lors de l\'upload des fichiers: ' + err.message });
+            return;
+        }
+        //recuperer les fichiers uploadés
+        const files = req.files as { [fieldname: string]: Express.Multer.File[] };
+        //verifier s'il y a des fichiers
+        if (!files || (!files['covering'] || files['covering'].length === 0)) {
+            res.status(400).json({ message: 'Aucun fichier image ou vidéo envoyé' });
+            return;
+        }
+        console.log(req.body);
+        
+        //Traiter les images avec S3
+        const coveringFile = files['covering'][0];
+        const fileName = `covering-${Date.now()}-${Math.round(Math.random() * 1E9)}${path.extname(coveringFile.originalname)}`;
+        const destination = `covering_ads/${req.params.nom_societe}/images/${fileName}`;
+        
+        try {
+            const fileUrl = await uploadToS3(coveringFile, destination);
             
-            //Traiter les images
-            const bannerFiles = files['covering'] || [];
-            const path=bannerFiles[0].path;
-            const url=  path.substring(path.indexOf('uploads'));
-            const coveringAd={
+            const covring = {
                 _id: new Types.ObjectId(),
-                details: {
-                    modele_voiture: req.body.model_voiture,
-                    type_covering: req.body.type_covering,
-                    image: url,
-                    nombre_taxi: Number(req.body.nombre_de_taxi),
-                    nombre_jour: Number(req.body.nombre_de_jour),
-                    prix: Number(req.body.prix)
-                },
-                dates: {
-                    creation: new Date(),
-                    debut: new Date(req.body.date_debut),
-                    fin: new Date(req.body.date_fin)
-                },
-                status: 'pending',
-                assigned_taxis: []
-            }
-            
-            console.log(coveringAd);
-            
+                image: fileUrl,
+                modele_voiture: req.body.model_voiture,
+                type_covering: req.body.type_covering,
+                nombre_taxi: req.body.nombre_de_taxi,
+                nombre_jour: req.body.nombre_de_jour,
+                prix: req.body.prix,
+                statu: 'pending',
+                impressions: 0,
+                clicks: 0
+            };
+
             const session = await stripe.checkout.sessions.create({
                 payment_method_types: ['card'],
                 line_items: [
@@ -65,18 +65,22 @@ export class Controllercovringads {
                                 name: `Publicité ${req.params.nom_societe || ''}`,
                                 description: 'Campagne publicitaire',
                             },
-                            unit_amount:  Math.round(coveringAd.details.prix * 100), // Conversion en centimes et arrondi
+                            unit_amount:  Math.round(covring.prix * 100), 
                         },
                         quantity: 1,
                     },
                 ],
                 mode: 'payment',
-                success_url: `${process.env.FRONTEND_URL || 'http://localhost:4200'}/paiment_sucesses/${coveringAd._id}?data=${encodeURIComponent(JSON.stringify(coveringAd))}&type=covering`,
-                cancel_url: `${process.env.FRONTEND_URL || 'http://localhost:4200'}/paiment_echouee/${coveringAd._id}?type=covering`,
+                success_url: `${ process.env.front_end }/paiment_sucesses/${covring._id}?data=${encodeURIComponent(JSON.stringify(covring))}&type=covering`,
+                cancel_url: `${process.env.front_end}/paiment_echouee/${covring._id}?type=covering`,
             });
-            
+
             res.status(200).json({ id: session.id });
-        })
+        } catch (error: any) {
+            console.error('Erreur lors de l\'upload sur S3:', error);
+            res.status(500).json({ message: 'Erreur lors de l\'upload: ' + error.message });
+        }
+    });
     }
 
 
@@ -101,30 +105,67 @@ export class Controllercovringads {
         res.status(400).json({error:'Utilisateur non trouvé'});
         return;
       }
-      const coveringAds = new CoveringAd();
-      coveringAds._id=coveringAd._id;
-      coveringAds.creator={
-        type:type as 'partenaire' | 'client',
-        id:id as Types.ObjectId
+      
+      // S'assurer que coveringAd a l'ID
+      if (!coveringAd._id) {
+        coveringAd._id = new Types.ObjectId();
       }
-      coveringAds.details=coveringAd.details;
-      coveringAds.dates=coveringAd.dates;
-      coveringAds.status=coveringAd.status;
-      coveringAds.assigned_taxis=coveringAd.assigned_taxis;
+      
+      // Créer un nouvel objet CoveringAd avec tous les champs requis
+      const coveringAds = new CoveringAd({
+        _id: coveringAd._id,
+        creator: {
+          type: type as 'partenaire' | 'client',
+          id: id as Types.ObjectId
+        },
+        details: {
+          modele_voiture: coveringAd.modele_voiture,
+          type_covering: coveringAd.type_covering,
+          image: coveringAd.image,
+          nombre_taxi: parseInt(coveringAd.nombre_taxi),
+          nombre_jour: parseInt(coveringAd.nombre_jour),
+          prix: parseFloat(coveringAd.prix)
+        },
+        status:  'Pending',
+        assigned_taxis: coveringAd.assigned_taxis || []
+      });
+      
       console.log(coveringAds);
       
       await coveringAds.save();
-      
-      
+      const admins=await Admin.find({});
+      let partenaire;
+      let touriste;
+      for(const admin of admins){
+        if(coveringAds.creator.type==='partenaire'){
+           partenaire = await Partenaires.findById(coveringAds.creator.id);
+        }
+        else{
+           touriste = await Touristes.findById(coveringAds.creator.id);
+        }
+        Fonction.sendmailAdminCovering(
+          admin.email,
+          {
+            nom_partenaire: partenaire?.inforamtion.inforegester.nom_entreprise || touriste?.info.nom_complet || "Partenaire inconnu",
+            modele: coveringAds.details.modele_voiture,
+            type: coveringAds.details.type_covering,
+            nombre_taxi: coveringAds.details.nombre_taxi,
+            nombre_jour: coveringAds.details.nombre_jour,
+            prix: coveringAds.details.prix
+          },
+          `http://localhost:4200/admin/utilisateurs/partenaires/${coveringAds.creator.id}/covering`
+        );
+      }
+      /*const chauffeurs=await Chauffeurs.find({vehicule:{$in:[coveringAds.details.modele_voiture]}})
+      for(const chauffeur of chauffeurs){
+        Fonction.sendmailCovering(chauffeur.info.email,coveringAds.details)
+      }*/
       
       res.status(200).json({message:'Campagne publicitaire enregistrée avec succès'});
     } catch (error) {
       console.log(error);
-      res.status(500).json({error:error});
+      res.status(500).json({error});
     }
-
-        
-  
     }
 
 
@@ -147,7 +188,7 @@ async getAvailableCampaigns(req: Request, res: Response): Promise<void> {
       const min_days = parseInt(req.query.min_days as string) || 0;
       
       // Construire le filtre
-      const filter: any = { status: 'active' };
+      const filter: any = { status: 'Active' };
       
       if (modele) filter['details.modele_voiture'] = modele;
       if (type_covering) filter['details.type_covering'] = type_covering;
@@ -161,6 +202,8 @@ async getAvailableCampaigns(req: Request, res: Response): Promise<void> {
         .sort({ 'dates.debut': 1 })
         .skip(skip)
         .limit(limit);
+        console.log("campaigns:"+campaigns);
+        
       
       // Compter le total
       const total = await CoveringAd.countDocuments(filter);
@@ -173,7 +216,8 @@ async getAvailableCampaigns(req: Request, res: Response): Promise<void> {
           currentPage: page,
           totalPages: Math.ceil(total / limit)
         },
-        data: campaigns
+        data: campaigns,
+        filter: filter
       });
     } catch (error) {
       console.error('Erreur lors de la récupération des campagnes disponibles:', error);
@@ -198,17 +242,9 @@ async getAvailableCampaigns(req: Request, res: Response): Promise<void> {
       const chauffeurId = req.user;
       const { campaignId } = req.params;
       
-      // Vérifier si l'utilisateur est un chauffeur de taxi
-      const chauffeur = await Chauffeurs.findById(chauffeurId);
-      if (!chauffeur || !chauffeur._id) {
-        res.status(403).json({ 
-          success: false, 
-          message: 'Accès non autorisé ou taxi non assigné' 
-        });
-        return;
-      }
       
-      const chauffeurDetails = await Chauffeurs.findById(chauffeur._id);
+      
+      const chauffeurDetails = await Chauffeurs.findById(chauffeurId);
       if (!chauffeurDetails) {
         res.status(404).json({ 
           success: false, 
@@ -240,14 +276,14 @@ async getAvailableCampaigns(req: Request, res: Response): Promise<void> {
         });
         return;
       }
-      if (campaign.status === 'pending') {
+        if (campaign.status === 'Pending') {
         res.status(400).json({ 
           success: false, 
           message: 'Cette campagne n\'est plus disponible' 
         });
         return;
       }
-      const verifcompagne=await CoveringAd.find({assigned_taxis:{$in:[chauffeur._id]}});
+      const verifcompagne=await CoveringAd.find({assigned_taxis:{$in:[chauffeurId]}});
       if (verifcompagne.length>0) {
         res.status(400).json({ 
           success: false, 
@@ -257,7 +293,7 @@ async getAvailableCampaigns(req: Request, res: Response): Promise<void> {
       }
       
       // Vérifier si le modèle du taxi correspond
-      if (chauffeur.vehicule.modele !== campaign.details.modele_voiture) {
+      if (chauffeurDetails.vehicule.modele !== campaign.details.modele_voiture) {
         res.status(400).json({ 
           success: false, 
           message: 'Le modèle de votre taxi ne correspond pas à celui requis pour cette campagne' 
@@ -275,37 +311,37 @@ async getAvailableCampaigns(req: Request, res: Response): Promise<void> {
       }
       
       // Ajouter le taxi à la campagne
-      campaign.assigned_taxis.push(chauffeur._id);
+      campaign.assigned_taxis.push(chauffeurDetails._id);
       
       // Si le nombre requis est atteint, activer la campagne
       if (campaign.assigned_taxis.length >= campaign.details.nombre_taxi) {
-        campaign.status = 'active';
+        campaign.status = 'Completed';
       }
       
       await campaign.save();
       
       // Ajouter la campagne aux coverings actifs du taxi
-      chauffeur.active_coverings = chauffeur.active_coverings || [];
+      chauffeurDetails.active_coverings = chauffeurDetails.active_coverings || [];
       
       // Calculer la date de fin en ajoutant le nombre de jours
-      const dateDebut = new Date(campaign.dates.debut);
-      const dateFin = new Date(dateDebut);
+      const dateDebut = new Date();
+      const dateFin = new Date();
       dateFin.setDate(dateDebut.getDate() + campaign.details.nombre_jour);
       
-      chauffeur.active_coverings.push({
+      chauffeurDetails.active_coverings.push({
         id: campaign._id, 
         date_debut: dateDebut, 
         date_fin: dateFin
       });
       
-      await chauffeur.save();
+      await chauffeurDetails.save();
       
       res.status(200).json({
         success: true,
         message: 'Vous avez rejoint la campagne avec succès',
         data: {
           campaignId: campaign._id,
-          taxiId: chauffeur._id
+          taxiId: chauffeurDetails._id
         }
       });
     } catch (error) {
@@ -317,7 +353,28 @@ async getAvailableCampaigns(req: Request, res: Response): Promise<void> {
       });
     }
   }
-  
+  async getcoveringadsById(req: Request, res: Response): Promise<void> {
+    if (mongoose.connection.readyState !== 1) {
+      await dbConnection.getConnection().catch(error => {
+        res.status(500).json({ error: 'Erreur de connexion à la base de données' });
+        return;
+      });
+    }
+    try {
+      const id = req.params.id;
+      const coveringads = await CoveringAd.find({'creator.id':id});
+      const partenaire=await Partenaires.findById(id);
+      
+      res.status(200).json({covering:coveringads,nom_societe:partenaire?.inforamtion.inforegester.nom_entreprise});
+    } catch (error) {
+      console.error('Erreur lors de la récupération des campagnes:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Erreur lors de la récupération des campagnes',
+        error
+      });
+    }
+  }
   // Méthode pour récupérer les campagnes du taxi connecté
   async getMyCampaigns(req: Request, res: Response): Promise<void> {
     if (mongoose.connection.readyState !== 1) {
@@ -330,27 +387,8 @@ async getAvailableCampaigns(req: Request, res: Response): Promise<void> {
     try {
       const chauffeurId = req.user;
       
-      // Vérifier si l'utilisateur est un chauffeur de taxi
-      const chauffeurs = await Chauffeurs.findById(chauffeurId);
-      if (!chauffeurs) {
-        res.status(403).json({ 
-          success: false, 
-          message: 'Accès réservé aux chauffeurs de taxi' 
-        });
-        return;
-      }
-      
-      // Vérifier si le chauffeur a un taxi assigné
-      if (!chauffeurs._id) {
-        res.status(400).json({ 
-          success: false, 
-          message: 'Vous n\'avez pas de taxi assigné' 
-        });
-        return;
-      }
-      
       // Récupérer le taxi et ses campagnes actives
-      const chauffeurDetails = await Chauffeurs.findById(chauffeurs._id);
+      const chauffeurDetails = await Chauffeurs.findById(chauffeurId);
       if (!chauffeurDetails) {
         res.status(404).json({ 
           success: false, 
@@ -358,25 +396,33 @@ async getAvailableCampaigns(req: Request, res: Response): Promise<void> {
         });
         return;
       }
+
+      console.log("active_coverings:"+chauffeurDetails);
+     
       
       // Récupérer les détails des campagnes actives
       const activeCampaigns = await CoveringAd.find({
-        _id: { $in: chauffeurDetails.active_coverings || [] }
+        _id: { $in: chauffeurDetails.active_coverings?.map(c => c.id) || [] }
       });
+      console.log("activeCampaigns:"+activeCampaigns);
+      console.log("covering_history:"+chauffeurDetails.covering_history);
       
       // Récupérer les détails des campagnes passées
       const historyCampaigns = await CoveringAd.find({
         _id: { $in: chauffeurDetails.covering_history || [] }
       });
+      console.log(historyCampaigns);
       
       res.status(200).json({
         success: true,
         data: {
           active: activeCampaigns || [],
-          history: historyCampaigns || []
+          history: historyCampaigns || [],
+          covering_history: chauffeurDetails.covering_history || []
         }
       });
     } catch (error) {
+      console.log(error);
       console.error('Erreur lors de la récupération des campagnes du taxi:', error);
       res.status(500).json({
         success: false,
@@ -385,7 +431,38 @@ async getAvailableCampaigns(req: Request, res: Response): Promise<void> {
       });
     }
   }
-  
+  async ActiveCampaign(req: Request, res: Response): Promise<void> {
+    if (mongoose.connection.readyState !== 1) {
+      await dbConnection.getConnection().catch(error => {
+        res.status(500).json({ error: 'Erreur de connexion à la base de données' });
+        return;
+      });
+    }
+    try {
+      const id = req.params.id;
+      const campaign = await CoveringAd.findById(id);
+     console.log(campaign);
+     
+      if (campaign) {
+        campaign.status = 'Active';
+        await campaign.save();
+        const chauffeurs=await Chauffeurs.find()
+        for(const chauffeur of chauffeurs){
+          Fonction.sendmailChauffeurCovering(chauffeur.info.email,{modele:campaign.details.modele_voiture,type:campaign.details.type_covering,prix:campaign.details.prix},`${process.env.front_end}/covering-ads-commande`)
+        }
+        res.status(200).json(campaign);
+      } else {
+        res.status(404).json({ message: 'Campagne non trouvée' });
+      }
+    } catch (error) {
+      console.error('Erreur lors de l\'activation de la campagne:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Erreur lors de l\'activation de la campagne',
+        error
+      });
+    }
+  }
   // Méthode pour qu'un taxi quitte une campagne
   async leaveCampaign(req: Request, res: Response): Promise<void> {
     if (mongoose.connection.readyState !== 1) {
@@ -442,9 +519,9 @@ async getAvailableCampaigns(req: Request, res: Response): Promise<void> {
       }
       
       // Vérifier si la campagne est active depuis moins de 24h (règle d'exemple)
-      if (campaign.status === 'active') {
+      if (campaign.status === 'Active') {
         const nowDate = new Date();
-        const startDate = new Date(campaign.dates.debut);
+        const startDate = new Date(); // Utiliser la date actuelle comme approximation
         const timeDiff = Math.abs(nowDate.getTime() - startDate.getTime());
         const diffHours = timeDiff / (1000 * 3600);
         
@@ -463,8 +540,8 @@ async getAvailableCampaigns(req: Request, res: Response): Promise<void> {
       );
       
       // Si c'était le dernier taxi, remettre la campagne en attente
-      if (campaign.assigned_taxis.length === 0 && campaign.status === 'active') {
-        campaign.status = 'pending';
+      if (campaign.assigned_taxis.length === 0 && campaign.status === 'Active') {
+        campaign.status = 'Completed';
       }
       
       await campaign.save();
@@ -555,7 +632,7 @@ async getAvailableCampaigns(req: Request, res: Response): Promise<void> {
       
       for (const campaign of expiredCampaigns) {
         // Mettre à jour le statut de la campagne
-        campaign.status = 'completed';
+        campaign.status = 'Completed';
         await campaign.save();
         
         // Pour chaque taxi assigné à la campagne
@@ -578,7 +655,38 @@ async getAvailableCampaigns(req: Request, res: Response): Promise<void> {
       });
     }
   }
+  async deleteCampaign(req: Request, res: Response): Promise<void> {
+    if (mongoose.connection.readyState !== 1) {
+      await dbConnection.getConnection().catch(error => {
+        res.status(500).json({ error: 'Erreur de connexion à la base de données' });
+        return;
+      }); 
+    }
+    try {
+      const id = req.params.id;
+      console.log(id);
+      
+      const campaign = await CoveringAd.findById(id);
+      console.log(campaign);
+      
+      if (!campaign) {
+        res.status(404).json({ message: 'Campagne non trouvée' });
+        return;
+      }
+      await deleteFromS3(campaign.details.image);
+      await campaign.deleteOne();
+      res.status(200).json({ message: 'Campagne supprimée avec succès' });
+    } catch (error) {
+      console.error('Erreur lors de la suppression de la campagne:', error);
+      res.status(500).json({    
+        success: false,
+        message: 'Erreur lors de la suppression de la campagne',
+        error
+      });
+    }
+  }
   
+
   // Méthode pour qu'un taxi signale un problème avec une campagne
   async reportCampaignIssue(req: Request, res: Response): Promise<void> {
     if (mongoose.connection.readyState !== 1) {
@@ -634,7 +742,7 @@ async getAvailableCampaigns(req: Request, res: Response): Promise<void> {
     }
     
     try {
-      const now = new Date('2025-04-25T10:00:00.000Z');
+      const now = new Date();
       
       // Trouver tous les chauffeurs qui ont des campagnes expirées
       const chauffeurs = await Chauffeurs.find({

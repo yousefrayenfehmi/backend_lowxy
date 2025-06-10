@@ -59,6 +59,7 @@ export interface IVilleArticle extends Document {
         hotels_recommandes: IHotel[];
         restaurants_recommandes: IRestaurant[];
     };
+    
     medias: {
         photos: string[];
         videos: string[];
@@ -67,4 +68,5 @@ export interface IVilleArticle extends Document {
         nombre_vues: number;
         derniere_mise_a_jour: Date;
     };
+    crèepar:string;
 }

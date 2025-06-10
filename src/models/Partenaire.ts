@@ -1,5 +1,5 @@
 import mongoose, { Schema, Document, Types } from "mongoose";
-import IPartenaire from "../Interface/InterfacePartenair";
+import { IPartenaire } from "../Interface/InterfacePartenair";
 
 
 const partenaireSchema = new Schema<IPartenaire>({
@@ -50,6 +50,7 @@ const partenaireSchema = new Schema<IPartenaire>({
             plan: String
         }, 
         images: [String],
+        commission: {type: Number,required: true,default:20},
         jours: [{
             date: Date,
             depart: String,
