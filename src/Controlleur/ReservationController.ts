@@ -924,7 +924,7 @@ async createPaymentSession(req: AuthRequest, res: Response): Promise<void> {
       partenaire.tours[tourIndex].jours[jourIndex].reservations[reservationIndex].statut = 'annulée';
 
       await partenaire.save();
-
+      console.log("Réservation annulée avec succès par le partenaire");
       res.status(200).json({ success: true, message: 'Réservation annulée avec succès par le partenaire' });
     } catch (error) {
       console.error('Erreur lors de l\'annulation de la réservation par le partenaire:', error);
@@ -943,38 +943,42 @@ async createPaymentSession(req: AuthRequest, res: Response): Promise<void> {
         });
       }
 
-      const { reservation_id, tour_id, jour_id } = req.body;
+      const { reservationId, tourId, jourId } = req.body;
       const client_id = req.user;
+      console.log("--------------------------------");
+      console.log(client_id);
+      console.log(reservationId, tourId, jourId);
+      console.log("--------------------------------");
 
       if (!client_id || !Types.ObjectId.isValid(client_id)) {
         res.status(401).json({ success: false, message: 'Authentification requise' });
         return;
       }
 
-      if (!reservation_id || !Types.ObjectId.isValid(reservation_id) || !tour_id || !Types.ObjectId.isValid(tour_id) || !jour_id || !Types.ObjectId.isValid(jour_id)) {
+      if (!reservationId || !Types.ObjectId.isValid(reservationId) || !tourId || !Types.ObjectId.isValid(tourId) || !jourId || !Types.ObjectId.isValid(jourId)) {
         res.status(400).json({ success: false, message: 'Paramètres invalides ou manquants' });
         return;
       }
 
-      const partenaire = await Partenaires.findOne({ 'tours._id': tour_id });
+      const partenaire = await Partenaires.findOne({ 'tours._id': tourId });
       if (!partenaire) {
         res.status(404).json({ success: false, message: 'Tour non trouvé' });
         return;
       }
 
-      const tourIndex = partenaire.tours.findIndex(t => t._id.toString() === tour_id);
+      const tourIndex = partenaire.tours.findIndex(t => t._id.toString() === tourId);
       if (tourIndex === -1) {
         res.status(404).json({ success: false, message: 'Tour non trouvé' });
         return;
       }
 
-      const jourIndex = partenaire.tours[tourIndex].jours.findIndex(j => j._id.toString() === jour_id);
+      const jourIndex = partenaire.tours[tourIndex].jours.findIndex(j => j._id.toString() === jourId);
       if (jourIndex === -1) {
         res.status(404).json({ success: false, message: 'Jour non trouvé' });
         return;
       }
 
-      const reservationIndex = partenaire.tours[tourIndex].jours[jourIndex].reservations.findIndex(r => r._id.toString() === reservation_id);
+      const reservationIndex = partenaire.tours[tourIndex].jours[jourIndex].reservations.findIndex(r => r._id.toString() === reservationId);
       if (reservationIndex === -1) {
         res.status(404).json({ success: false, message: 'Réservation non trouvée' });
         return;
@@ -995,7 +999,7 @@ async createPaymentSession(req: AuthRequest, res: Response): Promise<void> {
       partenaire.tours[tourIndex].jours[jourIndex].reservations[reservationIndex].statut = 'annulée';
 
       await partenaire.save();
-
+      console.log("Réservation annulée avec succès par le touriste");
       res.status(200).json({ success: true, message: 'Réservation annulée avec succès par le touriste' });
     } catch (error) {
       console.error('Erreur lors de l\'annulation de la réservation par le touriste:', error);
