@@ -57,7 +57,10 @@ const partenaireSchema = new Schema<IPartenaire>({
                 adultes: Number,    
                 enfants: Number
             },
-            prix: Number,
+            prix: {
+                adulte: { type: Number, required: true },
+                enfant: { type: Number, required: true }
+            },
             supplements: [String],
             reservations: [{
                 client_id: { type: Schema.Types.ObjectId, ref: 'Client' },

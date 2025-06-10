@@ -14,10 +14,10 @@ class Routetouriste {
     }
     private initRoutes() {
         // Routes d'authentification
-        router.post('/touriste/login', controllerclientInstance.login);
         router.post('/touriste/register', async (req: Request, res: Response) => {
           await controllerclientInstance.Signup(req, res);
         });
+        router.post('/touriste/login', controllerclientInstance.login);
         router.post('/touriste/auth/google',controllerclientInstance.authavecgoogle)  
         router.post('/touriste/auth/facebook',controllerclientInstance.authavecfacebook)      
         router.get('/touriste-reenvoyercode',controllerclientInstance.verifyToken,controllerclientInstance.reenvoyeruncode);

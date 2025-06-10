@@ -34,179 +34,179 @@ class ReservationController {
  }
  
   // Créer une session de paiement pour une réservation
-  async createPaymentSession(req: AuthRequest, res: Response): Promise<void> {
+async createPaymentSession(req: AuthRequest, res: Response): Promise<void> {
+  upload(req, res, async (err) => {
+    try {
+      if (err) {
+        console.error('Erreur multer:', err);
+        res.status(400).json({ success: false, message: 'Erreur lors du traitement du formulaire: ' + err.message });
+        return;
+      }
 
-    upload(req, res, async (err) => {
-      try {
-        if (err) {
-          console.error('Erreur multer:', err);
-          res.status(400).json({ success: false, message: 'Erreur lors du traitement du formulaire: ' + err.message });
-          return;
-        }
-
-        // Vérification de la connexion à la BD
-        if (mongoose.connection.readyState !== 1) {
-          await dbConnection.getConnection().catch(error => {
-              res.status(500).json({ error: 'Erreur de connexion à la base de données' });
-              return;
-          });
-        }
-
-        // Récupérer l'ID du client à partir du token d'authentification
-        const client_id = req.user;
-        
-        if (!client_id || !Types.ObjectId.isValid(client_id)) {
-          res.status(401).json({ 
-            success: false, 
-            message: 'Authentification requise pour effectuer une réservation' 
-          });
-          return;
-        }
-
-        console.log("Données reçues pour la réservation:", req.body);
-        
-        const { tour_id, jour_id, date, adultes, enfants, prix_total, nom_tour } = req.body;
-        // Vérifier la validité des paramètres
-        if (!tour_id || !Types.ObjectId.isValid(tour_id) || 
-            !jour_id || !Types.ObjectId.isValid(jour_id) || 
-            !date || !adultes || !prix_total || !nom_tour) {
-          res.status(400).json({ 
-            success: false, 
-            message: 'Paramètres invalides ou manquants' 
-          });
-          return;
-        }
-        
-        // Trouver le partenaire et le tour
-        const partenaire = await Partenaires.findOne({ 'tours._id': tour_id });
-        if (!partenaire) {
-          res.status(404).json({ 
-            success: false, 
-            message: 'Tour non trouvé' 
-          });
-          return;
-        }
-        
-        // Trouver le tour dans le tableau des tours du partenaire
-        const tour = partenaire.tours.find(t => t._id.toString() === tour_id);
-        if (!tour) {
-          res.status(404).json({ 
-            success: false, 
-            message: 'Tour non trouvé' 
-          });
-          return;
-        }
-        
-        // Trouver le jour dans le tableau des jours du tour
-        const jour = tour.jours.find(j => j._id.toString() === jour_id);
-        if (!jour) {
-          res.status(404).json({ 
-            success: false, 
-            message: 'Jour non trouvé' 
-          });
-          return;
-        }
-        
-        // Vérifier la disponibilité
-        const nbAdultes = parseInt(adultes);
-        const nbEnfants = parseInt(enfants || '0');
-        
-        if (nbAdultes > jour.capacite.adultes || nbEnfants > jour.capacite.enfants) {
-          res.status(400).json({ 
-            success: false, 
-            message: 'Capacité insuffisante pour cette date' 
-          });
-          return;
-        }
-        
-        // Créer une réservation temporaire avec un nouvel ID
-        const reservationId = new mongoose.Types.ObjectId();
-        
-        const reservation = {
-          _id: reservationId,
-          client_id: new Types.ObjectId(client_id),
-          date: new Date(date),
-          participants: {
-            adultes: nbAdultes,
-            enfants: nbEnfants
-          },
-          prix_total: parseFloat(prix_total),
-          statut: 'en attente de paiement'
-        };
-        
-        // Ajouter la réservation temporaire au tableau de réservations du jour
-        if (!jour.reservations) {
-          jour.reservations = [];
-        }
-        
-        jour.reservations.push(reservation);
-        await partenaire.save();
-        
-        console.log("Réservation créée temporairement:", reservation);
-        
-        try {
-          // Création de la session de paiement Stripe
-          const prixTotal = typeof prix_total === 'number' ? prix_total : parseFloat(prix_total || '0');
-          
-          const session = await stripe.checkout.sessions.create({
-            payment_method_types: ['card'],
-            line_items: [
-              {
-                price_data: {
-                  currency: 'eur',
-                  product_data: {
-                    name: `Réservation pour ${nom_tour}`,
-                    description: `${nbAdultes} adulte(s) et ${nbEnfants} enfant(s) pour le ${new Date(date).toLocaleDateString('fr-FR')}`,
-                  },
-                  unit_amount: Math.round(prixTotal * 100), // Conversion en centimes
-                },
-                quantity: 1,
-              },
-            ],
-            mode: 'payment',
-            success_url: `${process.env.front_end}/paiment_sucesses/${reservation._id}?data=${encodeURIComponent(JSON.stringify({
-              reservation_id: reservationId.toString(),
-              tour_id: tour_id,
-              jour_id: jour_id,
-              client_id: client_id
-            }))}&type=reservation`,
-            cancel_url: `${process.env.front_end}/paiment_echouee/${reservation._id}?data=${encodeURIComponent(JSON.stringify({
-              tour_id: tour_id
-            }))}&type=reservation`,
-          });
-          
-          res.status(200).json({ 
-            success: true, 
-            id: session.id,
-            reservation_id: reservationId
-          });
-        } catch (stripeError) {
-          console.error('Erreur Stripe:', stripeError);
-          
-          // Annuler la réservation temporaire en cas d'erreur
-          const jourIndex = tour.jours.findIndex(j => j._id.toString() === jour_id);
-          if (jourIndex !== -1) {
-            const reservationIndex = tour.jours[jourIndex].reservations.findIndex(r => r._id.toString() === reservationId.toString());
-            if (reservationIndex !== -1) {
-              tour.jours[jourIndex].reservations.splice(reservationIndex, 1);
-              await partenaire.save();
-            }
-          }
-          
-          res.status(400).json({ 
-            success: false,
-            message: 'Erreur lors de la création du paiement Stripe',
-          });
-        }
-      } catch (error) {
-        console.error('Erreur lors de la création de la réservation:', error);
-        res.status(500).json({ 
-          success: false, 
-          message: 'Erreur lors de la création de la réservation' 
+      // Vérification de la connexion à la BD
+      if (mongoose.connection.readyState !== 1) {
+        await dbConnection.getConnection().catch(error => {
+            res.status(500).json({ error: 'Erreur de connexion à la base de données' });
+            return;
         });
       }
-    });
-  }
+
+      // Récupérer l'ID du client à partir du token d'authentification
+      const client_id = req.user;
+      
+      if (!client_id || !Types.ObjectId.isValid(client_id)) {
+        res.status(401).json({ 
+          success: false, 
+          message: 'Authentification requise pour effectuer une réservation' 
+        });
+        return;
+      }
+
+      console.log("Données reçues pour la réservation:", req.body);
+      
+      const { tour_id, jour_id, date, adultes, enfants, nom_tour } = req.body;
+      // Vérifier la validité des paramètres
+      if (!tour_id || !Types.ObjectId.isValid(tour_id) || 
+          !jour_id || !Types.ObjectId.isValid(jour_id) || 
+          !date || !adultes || !nom_tour) {
+        res.status(400).json({ 
+          success: false, 
+          message: 'Paramètres invalides ou manquants' 
+        });
+        return;
+      }
+      
+      // Trouver le partenaire et le tour
+      const partenaire = await Partenaires.findOne({ 'tours._id': tour_id });
+      if (!partenaire) {
+        res.status(404).json({ 
+          success: false, 
+          message: 'Tour non trouvé' 
+        });
+        return;
+      }
+      
+      // Trouver le tour dans le tableau des tours du partenaire
+      const tour = partenaire.tours.find(t => t._id.toString() === tour_id);
+      if (!tour) {
+        res.status(404).json({ 
+          success: false, 
+          message: 'Tour non trouvé' 
+        });
+        return;
+      }
+      
+      // Trouver le jour dans le tableau des jours du tour
+      const jour = tour.jours.find(j => j._id.toString() === jour_id);
+      if (!jour) {
+        res.status(404).json({ 
+          success: false, 
+          message: 'Jour non trouvé' 
+        });
+        return;
+      }
+      
+      // Vérifier la disponibilité
+      const nbAdultes = parseInt(adultes);
+      const nbEnfants = parseInt(enfants || '0');
+      
+      if (nbAdultes > jour.capacite.adultes || nbEnfants > jour.capacite.enfants) {
+        res.status(400).json({ 
+          success: false, 
+          message: 'Capacité insuffisante pour cette date' 
+        });
+        return;
+      }
+      
+      // Calculer le prix total en utilisant les prix spécifiques pour adultes et enfants
+      const prixTotal = (nbAdultes * jour.prix.adulte) + (nbEnfants * jour.prix.enfant);
+      
+      // Créer une réservation temporaire avec un nouvel ID
+      const reservationId = new mongoose.Types.ObjectId();
+      
+      const reservation = {
+        _id: reservationId,
+        client_id: new Types.ObjectId(client_id),
+        date: new Date(date),
+        participants: {
+          adultes: nbAdultes,
+          enfants: nbEnfants
+        },
+        prix_total: prixTotal,
+        statut: 'en attente de paiement'
+      };
+      
+      // Ajouter la réservation temporaire au tableau de réservations du jour
+      if (!jour.reservations) {
+        jour.reservations = [];
+      }
+      
+      jour.reservations.push(reservation);
+      await partenaire.save();
+      
+      console.log("Réservation créée temporairement:", reservation);
+      
+      try {
+        // Création de la session de paiement Stripe
+        const session = await stripe.checkout.sessions.create({
+          payment_method_types: ['card'],
+          line_items: [
+            {
+              price_data: {
+                currency: 'eur',
+                product_data: {
+                  name: `Réservation pour ${nom_tour}`,
+                  description: `${nbAdultes} adulte(s) à ${jour.prix.adulte}€ et ${nbEnfants} enfant(s) à ${jour.prix.enfant}€ pour le ${new Date(date).toLocaleDateString('fr-FR')}`,
+                },
+                unit_amount: Math.round(prixTotal * 100), // Conversion en centimes
+              },
+              quantity: 1,
+            },
+          ],
+          mode: 'payment',
+          success_url: `${process.env.front_end}/paiment_sucesses/${reservation._id}?data=${encodeURIComponent(JSON.stringify({
+            reservation_id: reservationId.toString(),
+            tour_id: tour_id,
+            jour_id: jour_id,
+            client_id: client_id
+          }))}&type=reservation`,
+          cancel_url: `${process.env.front_end}/paiment_echouee/${reservation._id}?data=${encodeURIComponent(JSON.stringify({
+            tour_id: tour_id
+          }))}&type=reservation`,
+        });
+        
+        res.status(200).json({ 
+          success: true, 
+          id: session.id,
+          reservation_id: reservationId
+        });
+      } catch (stripeError) {
+        console.error('Erreur Stripe:', stripeError);
+        
+        // Annuler la réservation temporaire en cas d'erreur
+        const jourIndex = tour.jours.findIndex(j => j._id.toString() === jour_id);
+        if (jourIndex !== -1) {
+          const reservationIndex = tour.jours[jourIndex].reservations.findIndex(r => r._id.toString() === reservationId.toString());
+          if (reservationIndex !== -1) {
+            tour.jours[jourIndex].reservations.splice(reservationIndex, 1);
+            await partenaire.save();
+          }
+        }
+        
+        res.status(400).json({ 
+          success: false,
+          message: 'Erreur lors de la création du paiement Stripe',
+        });
+      }
+    } catch (error) {
+      console.error('Erreur lors de la création de la réservation:', error);
+      res.status(500).json({ 
+        success: false, 
+        message: 'Erreur lors de la création de la réservation' 
+      });
+    }
+  });
+}
 
   // Confirmer le paiement d'une réservation
   async confirmPayment(req: Request, res: Response): Promise<void> {
@@ -794,6 +794,214 @@ class ReservationController {
     }
   }
 
+  // Méthode pour compléter une réservation en attente (pour le touriste)
+  async completeReservation(req: AuthRequest, res: Response): Promise<void> {
+    try {
+      // Vérification de la connexion à la BD
+      if (mongoose.connection.readyState !== 1) {
+        await dbConnection.getConnection().catch(error => {
+          res.status(500).json({ error: 'Erreur de connexion à la base de données' });
+          return;
+        });
+      }
+
+      const { reservation_id, tour_id, jour_id } = req.body;
+      const client_id = req.user;
+
+      if (!client_id || !Types.ObjectId.isValid(client_id)) {
+        res.status(401).json({ success: false, message: 'Authentification requise' });
+        return;
+      }
+
+      if (!reservation_id || !Types.ObjectId.isValid(reservation_id) || !tour_id || !Types.ObjectId.isValid(tour_id) || !jour_id || !Types.ObjectId.isValid(jour_id)) {
+        res.status(400).json({ success: false, message: 'Paramètres invalides ou manquants' });
+        return;
+      }
+
+      const partenaire = await Partenaires.findOne({ 'tours._id': tour_id });
+      if (!partenaire) {
+        res.status(404).json({ success: false, message: 'Tour non trouvé' });
+        return;
+      }
+
+      const tourIndex = partenaire.tours.findIndex(t => t._id.toString() === tour_id);
+      if (tourIndex === -1) {
+        res.status(404).json({ success: false, message: 'Tour non trouvé' });
+        return;
+      }
+
+      const jourIndex = partenaire.tours[tourIndex].jours.findIndex(j => j._id.toString() === jour_id);
+      if (jourIndex === -1) {
+        res.status(404).json({ success: false, message: 'Jour non trouvé' });
+        return;
+      }
+
+      const reservationIndex = partenaire.tours[tourIndex].jours[jourIndex].reservations.findIndex(r => r._id.toString() === reservation_id);
+      if (reservationIndex === -1) {
+        res.status(404).json({ success: false, message: 'Réservation non trouvée' });
+        return;
+      }
+
+      const reservation = partenaire.tours[tourIndex].jours[jourIndex].reservations[reservationIndex];
+      if (reservation.client_id.toString() !== client_id) {
+        res.status(403).json({ success: false, message: 'Vous n\'êtes pas autorisé à compléter cette réservation' });
+        return;
+      }
+
+      if (reservation.statut !== 'en attente de paiement') {
+        res.status(400).json({ success: false, message: 'Cette réservation n\'est pas en attente de paiement' });
+        return;
+      }
+
+      // Mettre à jour le statut de la réservation à "confirmée"
+      partenaire.tours[tourIndex].jours[jourIndex].reservations[reservationIndex].statut = 'confirmée';
+      partenaire.tours[tourIndex].jours[jourIndex].reservations[reservationIndex].payment_date = new Date();
+
+      await partenaire.save();
+
+      res.status(200).json({ success: true, message: 'Réservation complétée avec succès' });
+    } catch (error) {
+      console.error('Erreur lors de la complétion de la réservation:', error);
+      res.status(500).json({ success: false, message: 'Erreur lors de la complétion de la réservation' });
+    }
+  }
+
+  // Méthode pour qu'un partenaire annule une réservation en attente
+  async annulerReservationPartenaire(req: AuthRequest, res: Response): Promise<void> {
+    try {
+      // Vérification de la connexion à la BD
+      if (mongoose.connection.readyState !== 1) {
+        await dbConnection.getConnection().catch(error => {
+          res.status(500).json({ error: 'Erreur de connexion à la base de données' });
+          return;
+        });
+      }
+
+      const { reservation_id, tour_id, jour_id } = req.body;
+      const partenaire_id = req.user;
+
+      if (!partenaire_id || !Types.ObjectId.isValid(partenaire_id)) {
+        res.status(401).json({ success: false, message: 'Authentification requise' });
+        return;
+      }
+
+      if (!reservation_id || !Types.ObjectId.isValid(reservation_id) || !tour_id || !Types.ObjectId.isValid(tour_id) || !jour_id || !Types.ObjectId.isValid(jour_id)) {
+        res.status(400).json({ success: false, message: 'Paramètres invalides ou manquants' });
+        return;
+      }
+
+      const partenaire = await Partenaires.findOne({ _id: partenaire_id, 'tours._id': tour_id });
+      if (!partenaire) {
+        res.status(404).json({ success: false, message: 'Tour non trouvé ou non autorisé' });
+        return;
+      }
+
+      const tourIndex = partenaire.tours.findIndex(t => t._id.toString() === tour_id);
+      if (tourIndex === -1) {
+        res.status(404).json({ success: false, message: 'Tour non trouvé' });
+        return;
+      }
+
+      const jourIndex = partenaire.tours[tourIndex].jours.findIndex(j => j._id.toString() === jour_id);
+      if (jourIndex === -1) {
+        res.status(404).json({ success: false, message: 'Jour non trouvé' });
+        return;
+      }
+
+      const reservationIndex = partenaire.tours[tourIndex].jours[jourIndex].reservations.findIndex(r => r._id.toString() === reservation_id);
+      if (reservationIndex === -1) {
+        res.status(404).json({ success: false, message: 'Réservation non trouvée' });
+        return;
+      }
+
+      const reservation = partenaire.tours[tourIndex].jours[jourIndex].reservations[reservationIndex];
+      if (reservation.statut !== 'en attente de paiement') {
+        res.status(400).json({ success: false, message: 'Cette réservation n\'est pas en attente de paiement' });
+        return;
+      }
+
+      // Mettre à jour le statut de la réservation à "annulée"
+      partenaire.tours[tourIndex].jours[jourIndex].reservations[reservationIndex].statut = 'annulée';
+
+      await partenaire.save();
+
+      res.status(200).json({ success: true, message: 'Réservation annulée avec succès par le partenaire' });
+    } catch (error) {
+      console.error('Erreur lors de l\'annulation de la réservation par le partenaire:', error);
+      res.status(500).json({ success: false, message: 'Erreur lors de l\'annulation de la réservation' });
+    }
+  }
+
+  // Méthode pour qu'un touriste annule sa réservation en attente
+  async annulerReservationTouriste(req: AuthRequest, res: Response): Promise<void> {
+    try {
+      // Vérification de la connexion à la BD
+      if (mongoose.connection.readyState !== 1) {
+        await dbConnection.getConnection().catch(error => {
+          res.status(500).json({ error: 'Erreur de connexion à la base de données' });
+          return;
+        });
+      }
+
+      const { reservation_id, tour_id, jour_id } = req.body;
+      const client_id = req.user;
+
+      if (!client_id || !Types.ObjectId.isValid(client_id)) {
+        res.status(401).json({ success: false, message: 'Authentification requise' });
+        return;
+      }
+
+      if (!reservation_id || !Types.ObjectId.isValid(reservation_id) || !tour_id || !Types.ObjectId.isValid(tour_id) || !jour_id || !Types.ObjectId.isValid(jour_id)) {
+        res.status(400).json({ success: false, message: 'Paramètres invalides ou manquants' });
+        return;
+      }
+
+      const partenaire = await Partenaires.findOne({ 'tours._id': tour_id });
+      if (!partenaire) {
+        res.status(404).json({ success: false, message: 'Tour non trouvé' });
+        return;
+      }
+
+      const tourIndex = partenaire.tours.findIndex(t => t._id.toString() === tour_id);
+      if (tourIndex === -1) {
+        res.status(404).json({ success: false, message: 'Tour non trouvé' });
+        return;
+      }
+
+      const jourIndex = partenaire.tours[tourIndex].jours.findIndex(j => j._id.toString() === jour_id);
+      if (jourIndex === -1) {
+        res.status(404).json({ success: false, message: 'Jour non trouvé' });
+        return;
+      }
+
+      const reservationIndex = partenaire.tours[tourIndex].jours[jourIndex].reservations.findIndex(r => r._id.toString() === reservation_id);
+      if (reservationIndex === -1) {
+        res.status(404).json({ success: false, message: 'Réservation non trouvée' });
+        return;
+      }
+
+      const reservation = partenaire.tours[tourIndex].jours[jourIndex].reservations[reservationIndex];
+      if (reservation.client_id.toString() !== client_id) {
+        res.status(403).json({ success: false, message: 'Vous n\'êtes pas autorisé à annuler cette réservation' });
+        return;
+      }
+
+      if (reservation.statut !== 'en attente de paiement') {
+        res.status(400).json({ success: false, message: 'Cette réservation n\'est pas en attente de paiement' });
+        return;
+      }
+
+      // Mettre à jour le statut de la réservation à "annulée"
+      partenaire.tours[tourIndex].jours[jourIndex].reservations[reservationIndex].statut = 'annulée';
+
+      await partenaire.save();
+
+      res.status(200).json({ success: true, message: 'Réservation annulée avec succès par le touriste' });
+    } catch (error) {
+      console.error('Erreur lors de l\'annulation de la réservation par le touriste:', error);
+      res.status(500).json({ success: false, message: 'Erreur lors de l\'annulation de la réservation' });
+    }
+  }
 
 }
 

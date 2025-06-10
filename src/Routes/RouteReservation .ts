@@ -20,16 +20,19 @@ class RouteReservation {
     router.post('/reservations/create-payment-session', controllerclientInstance.verifyToken, reservationControllerInstance.createPaymentSession);
     router.post('/reservations/confirm-payment', reservationControllerInstance.confirmPayment);
 
-    // Route pour le webhook Stripe (pas d'authentification)
+    //Route pour le webhook Stripe (pas d'authentification)
     router.post('/reservations/webhook', express.raw({ type: 'application/json' }), reservationControllerInstance.handleStripeWebhook);
 
-    // Routes pour la gestion des réservations (authentifiées)
-    router.get('/mes-reservations', controllerclientInstance.verifyToken, reservationControllerInstance.getMesReservationsClient);
+    //Routes pour la gestion des réservations (authentifiées)
+   router.get('/mes-reservations', controllerclientInstance.verifyToken, reservationControllerInstance.getMesReservationsClient);
 
 
     router.get('/partenaire-reservation-by-tour/:tour_id', ControllerpartenairInstance.verifyToken, reservationControllerInstance.getReservationsForTour);
     router.get('/partenaire-mes-reservations', ControllerpartenairInstance.verifyToken, reservationControllerInstance.getMesReservationsPartenaire);
   
+    router.post('/reservations/complete-reservation', controllerclientInstance.verifyToken, reservationControllerInstance.completeReservation);
+    router.post('/reservations/annuler-reservation-partenaire', ControllerpartenairInstance.verifyToken, reservationControllerInstance.annulerReservationPartenaire);
+    router.post('/reservations/annuler-reservation-touriste', controllerclientInstance.verifyToken, reservationControllerInstance.annulerReservationTouriste);
   }
 }
 

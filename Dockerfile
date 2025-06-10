@@ -8,7 +8,7 @@ WORKDIR /app
 COPY package*.json ./
 COPY tsconfig.json ./
 
-# Installer les dépendances
+# Installer toutes les dépendances (y compris les devDependencies)
 RUN npm install
 
 # Copier les fichiers sources
@@ -26,8 +26,8 @@ WORKDIR /app
 # Copier les fichiers de dépendances
 COPY package*.json ./
 
-# Installer uniquement les dépendances de production
-RUN npm install --production
+# Installer toutes les dépendances (y compris jsonwebtoken)
+RUN npm install
 
 # Copier les fichiers compilés depuis l'étape de build
 COPY --from=builder /app/dist ./dist

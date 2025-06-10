@@ -57,13 +57,73 @@ interface ITouriste extends Document {
     langue?: string;
     langue_preferee?: string;
     centres_interet?: string[];
-    activites?: string[];
+    guide_ia?: {
+      narration: 'Sérieux' | 'Humoristique' | 'Familial' | 'Poétique';
+      voix: {
+        genre: 'Femme' | 'Homme' | 'Neutre';
+        age: 'Jeune' | 'Adulte' | 'Âgé';
+        style: 'Neutre' | 'Charismatique' | 'Amusante';
+      };
+      references_culturelles: boolean;
+    };
   };
   
   pack_ia: {
     actif: boolean;
     mode?: 'Live' | 'Itinéraire Personnalisé';
-    preferences?: string[];
+    derniere_utilisation?: Date;
+    historique_trajets?: Array<{
+      depart: {
+        adresse: string;
+        latitude: number;
+        longitude: number;
+      };
+      arrivee: {
+        adresse: string;
+        latitude: number;
+        longitude: number;
+      };
+      date?: Date;
+      duree?: number;
+      distance?: number;
+      points_interet_visites?: Array<{
+        nom: string;
+        type: string;
+        description: string;
+        latitude: number;
+        longitude: number;
+      }>;
+    }>;
+    sessions?: Array<{
+      date_debut?: Date;
+      date_fin?: Date;
+      duree?: number;
+      mode?: 'Live' | 'Itinéraire Personnalisé';
+      montant?: number;
+      statut_paiement?: 'En attente' | 'Complété' | 'Échoué' | 'Remboursé';
+      transaction_id?: string;
+      guide_responses?: Array<{
+        ville: string;
+        position: {
+          latitude: number;
+          longitude: number;
+        };
+        interest: string;
+        response: {
+          text: string;
+          pois: Array<{
+            name: string;
+            type: string;
+            description: string;
+            location: {
+              latitude: number;
+              longitude: number;
+            };
+          }>;
+        };
+        timestamp: Date;
+      }>;
+    }>;
   };
   
   // Nouvelle partie pour l'historique des quiz

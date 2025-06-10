@@ -17,7 +17,7 @@ class RouteTour {
     const verifyToken = ControllerpartenairInstance.verifyToken;
 
     // Routes pour les partenaires (nécessitent authentification)
-    router.post('/tours', verifyToken, tourControllerInstance.creerTour.bind(tourControllerInstance));
+   router.post('/tours', verifyToken, tourControllerInstance.creerTour.bind(tourControllerInstance));
     router.get('/mes-tours', verifyToken, tourControllerInstance.getMesTours.bind(tourControllerInstance));
     router.get('/mes-tours/:tourId', verifyToken, tourControllerInstance.getMonTourById.bind(tourControllerInstance));
     router.put('/tours/:tourId', verifyToken, tourControllerInstance.updateTour.bind(tourControllerInstance));
