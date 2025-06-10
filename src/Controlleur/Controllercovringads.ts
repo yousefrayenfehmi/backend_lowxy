@@ -14,6 +14,7 @@ import Fonction from "../fonction/Fonction";
 import { Emailtemplates } from "../fonction/EmailTemplates";
 import { log } from "console";
 import path from "path";
+import { Admin } from "../models/Admin";
 const stripe = new Stripe('sk_test_51RAG0WQ4fzXaDh6qqaSa4kETsLitTt3nAHAnaPoodCOrgstRL0puvbFYG6KoruYmawEgL3o8NJ5DmywcApPS2NjH00FKdOaX9O');
 export class Controllercovringads {
 
@@ -70,7 +71,7 @@ export class Controllercovringads {
                     },
                 ],
                 mode: 'payment',
-                success_url: `${ process.env.front_end || 'http://a9aec0bf981024fcab3097aa85d37546-1960190977.eu-west-3.elb.amazonaws.com'}//paiment_sucesses/${covring._id}?data=${encodeURIComponent(JSON.stringify(covring))}&type=covering`,
+                success_url: `${ process.env.front_end }/paiment_sucesses/${covring._id}?data=${encodeURIComponent(JSON.stringify(covring))}&type=covering`,
                 cancel_url: `${process.env.front_end}/paiment_echouee/${covring._id}?type=covering`,
             });
 
@@ -132,6 +133,33 @@ export class Controllercovringads {
       console.log(coveringAds);
       
       await coveringAds.save();
+      const admins=await Admin.find({});
+      let partenaire;
+      let touriste;
+      for(const admin of admins){
+        if(coveringAds.creator.type==='partenaire'){
+           partenaire = await Partenaires.findById(coveringAds.creator.id);
+        }
+        else{
+           touriste = await Touristes.findById(coveringAds.creator.id);
+        }
+        Fonction.sendmailAdminCovering(
+          admin.email,
+          {
+            nom_partenaire: partenaire?.inforamtion.inforegester.nom_entreprise || touriste?.info.nom_complet || "Partenaire inconnu",
+            modele: coveringAds.details.modele_voiture,
+            type: coveringAds.details.type_covering,
+            nombre_taxi: coveringAds.details.nombre_taxi,
+            nombre_jour: coveringAds.details.nombre_jour,
+            prix: coveringAds.details.prix
+          },
+          `http://localhost:4200/admin/utilisateurs/partenaires/${coveringAds.creator.id}/covering`
+        );
+      }
+      /*const chauffeurs=await Chauffeurs.find({vehicule:{$in:[coveringAds.details.modele_voiture]}})
+      for(const chauffeur of chauffeurs){
+        Fonction.sendmailCovering(chauffeur.info.email,coveringAds.details)
+      }*/
       
       res.status(200).json({message:'Campagne publicitaire enregistrée avec succès'});
     } catch (error) {
@@ -174,6 +202,8 @@ async getAvailableCampaigns(req: Request, res: Response): Promise<void> {
         .sort({ 'dates.debut': 1 })
         .skip(skip)
         .limit(limit);
+        console.log("campaigns:"+campaigns);
+        
       
       // Compter le total
       const total = await CoveringAd.countDocuments(filter);
@@ -186,7 +216,8 @@ async getAvailableCampaigns(req: Request, res: Response): Promise<void> {
           currentPage: page,
           totalPages: Math.ceil(total / limit)
         },
-        data: campaigns
+        data: campaigns,
+        filter: filter
       });
     } catch (error) {
       console.error('Erreur lors de la récupération des campagnes disponibles:', error);
@@ -211,17 +242,9 @@ async getAvailableCampaigns(req: Request, res: Response): Promise<void> {
       const chauffeurId = req.user;
       const { campaignId } = req.params;
       
-      // Vérifier si l'utilisateur est un chauffeur de taxi
-      const chauffeur = await Chauffeurs.findById(chauffeurId);
-      if (!chauffeur || !chauffeur._id) {
-        res.status(403).json({ 
-          success: false, 
-          message: 'Accès non autorisé ou taxi non assigné' 
-        });
-        return;
-      }
       
-      const chauffeurDetails = await Chauffeurs.findById(chauffeur._id);
+      
+      const chauffeurDetails = await Chauffeurs.findById(chauffeurId);
       if (!chauffeurDetails) {
         res.status(404).json({ 
           success: false, 
@@ -260,7 +283,7 @@ async getAvailableCampaigns(req: Request, res: Response): Promise<void> {
         });
         return;
       }
-      const verifcompagne=await CoveringAd.find({assigned_taxis:{$in:[chauffeur._id]}});
+      const verifcompagne=await CoveringAd.find({assigned_taxis:{$in:[chauffeurId]}});
       if (verifcompagne.length>0) {
         res.status(400).json({ 
           success: false, 
@@ -270,7 +293,7 @@ async getAvailableCampaigns(req: Request, res: Response): Promise<void> {
       }
       
       // Vérifier si le modèle du taxi correspond
-      if (chauffeur.vehicule.modele !== campaign.details.modele_voiture) {
+      if (chauffeurDetails.vehicule.modele !== campaign.details.modele_voiture) {
         res.status(400).json({ 
           success: false, 
           message: 'Le modèle de votre taxi ne correspond pas à celui requis pour cette campagne' 
@@ -288,37 +311,37 @@ async getAvailableCampaigns(req: Request, res: Response): Promise<void> {
       }
       
       // Ajouter le taxi à la campagne
-      campaign.assigned_taxis.push(chauffeur._id);
+      campaign.assigned_taxis.push(chauffeurDetails._id);
       
       // Si le nombre requis est atteint, activer la campagne
       if (campaign.assigned_taxis.length >= campaign.details.nombre_taxi) {
-        campaign.status = 'Active';
+        campaign.status = 'Completed';
       }
       
       await campaign.save();
       
       // Ajouter la campagne aux coverings actifs du taxi
-      chauffeur.active_coverings = chauffeur.active_coverings || [];
+      chauffeurDetails.active_coverings = chauffeurDetails.active_coverings || [];
       
       // Calculer la date de fin en ajoutant le nombre de jours
       const dateDebut = new Date();
       const dateFin = new Date();
       dateFin.setDate(dateDebut.getDate() + campaign.details.nombre_jour);
       
-      chauffeur.active_coverings.push({
+      chauffeurDetails.active_coverings.push({
         id: campaign._id, 
         date_debut: dateDebut, 
         date_fin: dateFin
       });
       
-      await chauffeur.save();
+      await chauffeurDetails.save();
       
       res.status(200).json({
         success: true,
         message: 'Vous avez rejoint la campagne avec succès',
         data: {
           campaignId: campaign._id,
-          taxiId: chauffeur._id
+          taxiId: chauffeurDetails._id
         }
       });
     } catch (error) {
@@ -364,27 +387,8 @@ async getAvailableCampaigns(req: Request, res: Response): Promise<void> {
     try {
       const chauffeurId = req.user;
       
-      // Vérifier si l'utilisateur est un chauffeur de taxi
-      const chauffeurs = await Chauffeurs.findById(chauffeurId);
-      if (!chauffeurs) {
-        res.status(403).json({ 
-          success: false, 
-          message: 'Accès réservé aux chauffeurs de taxi' 
-        });
-        return;
-      }
-      
-      // Vérifier si le chauffeur a un taxi assigné
-      if (!chauffeurs._id) {
-        res.status(400).json({ 
-          success: false, 
-          message: 'Vous n\'avez pas de taxi assigné' 
-        });
-        return;
-      }
-      
       // Récupérer le taxi et ses campagnes actives
-      const chauffeurDetails = await Chauffeurs.findById(chauffeurs._id);
+      const chauffeurDetails = await Chauffeurs.findById(chauffeurId);
       if (!chauffeurDetails) {
         res.status(404).json({ 
           success: false, 
@@ -392,25 +396,33 @@ async getAvailableCampaigns(req: Request, res: Response): Promise<void> {
         });
         return;
       }
+
+      console.log("active_coverings:"+chauffeurDetails);
+     
       
       // Récupérer les détails des campagnes actives
       const activeCampaigns = await CoveringAd.find({
-        _id: { $in: chauffeurDetails.active_coverings || [] }
+        _id: { $in: chauffeurDetails.active_coverings?.map(c => c.id) || [] }
       });
+      console.log("activeCampaigns:"+activeCampaigns);
+      console.log("covering_history:"+chauffeurDetails.covering_history);
       
       // Récupérer les détails des campagnes passées
       const historyCampaigns = await CoveringAd.find({
         _id: { $in: chauffeurDetails.covering_history || [] }
       });
+      console.log(historyCampaigns);
       
       res.status(200).json({
         success: true,
         data: {
           active: activeCampaigns || [],
-          history: historyCampaigns || []
+          history: historyCampaigns || [],
+          covering_history: chauffeurDetails.covering_history || []
         }
       });
     } catch (error) {
+      console.log(error);
       console.error('Erreur lors de la récupération des campagnes du taxi:', error);
       res.status(500).json({
         success: false,
@@ -434,6 +446,10 @@ async getAvailableCampaigns(req: Request, res: Response): Promise<void> {
       if (campaign) {
         campaign.status = 'Active';
         await campaign.save();
+        const chauffeurs=await Chauffeurs.find()
+        for(const chauffeur of chauffeurs){
+          Fonction.sendmailChauffeurCovering(chauffeur.info.email,{modele:campaign.details.modele_voiture,type:campaign.details.type_covering,prix:campaign.details.prix},`${process.env.front_end}/covering-ads-commande`)
+        }
         res.status(200).json(campaign);
       } else {
         res.status(404).json({ message: 'Campagne non trouvée' });
@@ -726,7 +742,7 @@ async getAvailableCampaigns(req: Request, res: Response): Promise<void> {
     }
     
     try {
-      const now = new Date('2025-04-25T10:00:00.000Z');
+      const now = new Date();
       
       // Trouver tous les chauffeurs qui ont des campagnes expirées
       const chauffeurs = await Chauffeurs.find({

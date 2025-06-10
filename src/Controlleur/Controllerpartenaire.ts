@@ -14,13 +14,19 @@ import { ObjectId } from 'mongodb';
 import { S3 } from 'aws-sdk';
 
 import dotenv from 'dotenv';
+import ConfigPublicite from "../models/Configpublicite";
 
 const stripe = new Stripe('sk_test_51RAG0WQ4fzXaDh6qqaSa4kETsLitTt3nAHAnaPoodCOrgstRL0puvbFYG6KoruYmawEgL3o8NJ5DmywcApPS2NjH00FKdOaX9O');
 
 const s3 = new S3({
   accessKeyId: process.env.AWS_ACCESS_KEY_ID,
   secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
-  region: process.env.AWS_REGION || 'eu-west-3'
+  region: 'eu-north-1', // Corriger la région selon l'erreur
+  httpOptions: {
+    timeout: 120000, // 2 minutes timeout
+    connectTimeout: 60000 // 1 minute connect timeout
+  },
+  maxRetries: 3
 });
 
 // Définition du middleware upload au niveau du module ou de la classe
@@ -34,29 +40,49 @@ const s3 = new S3({
     {name:'facture',maxCount:1}
   ]);
 
- export const uploadToS3 = async (file: Express.Multer.File, destination: string): Promise<string> => {
-  const bucketName = 'lowxysas';
+export async function uploadToS3(file: Express.Multer.File, destination: string): Promise<string> {
+  let fileBuffer: Buffer;
   
-  if (!bucketName) {
-    throw new Error('AWS_S3_BUCKET environment variable is not defined');
+  // Gérer les deux types de stockage
+  if (file.buffer) {
+    // Stockage mémoire
+    fileBuffer = file.buffer;
+  } else if (file.path) {
+    // Stockage local - lire le fichier
+    console.log('file.path33', file.path);
+    
+    fileBuffer = fs.readFileSync(file.path);
+    console.log('fileBuffer56', fileBuffer);
+    
+  } else {
+    throw new Error('Aucun contenu de fichier disponible');
   }
-  
-  const params = {
-    Bucket: bucketName,
-    Key: `uploads/${destination}`,
-    Body: file.buffer,
-    ContentType: file.mimetype
-  };
 
+  const params = {
+    Bucket: process.env.AWS_S3_BUCKET || 'lowxysas',
+    Key: destination,
+    Body: fileBuffer,
+    ContentType: file.mimetype
+    // ACL supprimé car le bucket ne permet pas les ACLs
+  };
+  console.log('params', params);
+  
   try {
+    console.log('Début upload vers S3...');
     const result = await s3.upload(params).promise();
-    console.log(`File uploaded successfully to ${result.Location}`);
+    console.log('Upload terminé:', result);
+    
+    if (!result || !result.Location) {
+      throw new Error('Upload S3 réussi mais pas de Location retournée');
+    }
+    
+    console.log('URL finale:', result.Location);
     return result.Location;
   } catch (error) {
     console.error('Error uploading file to S3:', error);
     throw error;
   }
-};
+}
 
 export const deleteFromS3 = async (fileUrl: string): Promise<void> => {
   try {
@@ -383,7 +409,35 @@ class ControllerPartenaire {
       }
     }
 
-
+async pubcomplete(req: Request, res: Response): Promise<void> {
+  if (mongoose.connection.readyState !== 1) {
+    await dbConnection.getConnection().catch(error => {
+      res.status(500).json({ error: 'Erreur de connexion à la base de données' });
+      return;
+    });
+  }
+  try {
+        const partenaires = await Partenaires.find();
+        const configads=await ConfigPublicite.find();
+        for(const partenaire of partenaires){
+            for(const pub of partenaire.pub_quiz){
+                console.log(pub.periode.fin<new Date());
+                console.log(new Date());
+                
+                if(pub.periode.fin < new Date() || (pub.clicks*configads[0].prixClic>pub.Budget_totale || pub.impressions*configads[0].prixImpression>pub.Budget_totale)){
+                    pub.statu = 'Complete';
+                    console.log("pub complete"+pub);
+                    
+                }
+            }
+            await partenaire.save();
+        }
+        res.status(200).json(partenaires);
+  } catch (error) { 
+    console.log(error);
+    res.status(500).json({ error: 'Erreur lors de la récupération des publicités quiz' });
+  }
+}
 
 async Pubsauvgarde(req: Request, res: Response): Promise<void> {
     if (mongoose.connection.readyState !== 1) {

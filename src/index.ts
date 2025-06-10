@@ -30,6 +30,7 @@ import { ControllercovringadsInstance } from './Controlleur/Controllercovringads
 
 // Importer node-cron pour les tâches programmées
 import cron from 'node-cron';
+import { ControllerpartenairInstance } from './Controlleur/Controllerpartenaire';
 
 // Création des dossiers d'upload au démarrage
 
@@ -112,7 +113,7 @@ app.listen(port, async () => {
   
   // Planifier l'exécution quotidienne des fonctions pour déplacer les campagnes expirées vers l'historique
   // Format cron: seconde(0-59) minute(0-59) heure(0-23) jour_du_mois(1-31) mois(1-12) jour_de_la_semaine(0-7)
-  cron.schedule('* * * * *', async () => { // Chaque minute
+  /*cron.schedule('* * * * *', async () => { // Chaque minute
     console.log('Exécution planifiée: Déplacement des campagnes expirées vers l\'historique');
     try {
       const mockReq = {} as any;
@@ -125,10 +126,11 @@ app.listen(port, async () => {
       } as any;
       
       // Exécuter les deux fonctions de nettoyage
+      await ControllerpartenairInstance.pubcomplete(mockReq, mockRes);
       await ControllercovringadsInstance.Capaigns_complete(mockReq, mockRes);
       await ControllercovringadsInstance.moveCampaignsToHistory(mockReq, mockRes);
     } catch (error) {
       console.error('Erreur lors de l\'exécution planifiée:', error);
     }
-  });
+  });*/
 });

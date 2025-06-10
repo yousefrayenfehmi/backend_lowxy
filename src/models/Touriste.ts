@@ -31,6 +31,10 @@ const resultatQuizSchema = new Schema({
     type: String,
     required: false
   },
+  prix: {
+    type: Number,
+    required: false
+  },
   lieu: String,
   dateQuiz: {
     type: Date,

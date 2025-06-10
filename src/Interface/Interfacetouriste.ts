@@ -7,7 +7,6 @@ interface QuestionQuiz {
   reponseSelectionnee: string;
   reponseCorrecte: string;
   estCorrect: boolean;
-  facture: string;
 }
 
 // Interface pour le résultat d'un quiz
@@ -22,6 +21,8 @@ interface ResultatQuiz {
   dateQuiz: Date;
   createdAt?: Date;
   updatedAt?: Date;
+  facture: string;
+  prix: number;
 }
 
 interface ITouriste extends Document {

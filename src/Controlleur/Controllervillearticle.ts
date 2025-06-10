@@ -6,6 +6,7 @@ import multer from "multer";
 import * as fs from "fs";
 import * as path from "path";
 import { uploadToS3 } from "./Controllerpartenaire";
+import { Admin } from "../models/Admin";
 // Configuration pour S3
 const s3Config = {
   region: process.env.AWS_REGION || 'eu-west-3',
@@ -46,13 +47,13 @@ const memoryStorage = multer.memoryStorage();
 // Créer le middleware multer pour stockage local
 const upload = multer({ 
   storage: storage,
-  limits: { fileSize: 50 * 1024 * 1024 } // 50 MB max
+  limits: { fileSize: 100 * 1024 * 1024 } // 50 MB max
 }).any();
 
 // Créer le middleware multer pour S3
 const uploadMemory = multer({
   storage: memoryStorage,
-  limits: { fileSize: 50 * 1024 * 1024 } // 50 MB max
+  limits: { fileSize: 100 * 1024 * 1024 } // 50 MB max
 }).any();
 
 class ControllerVilleArticle {
@@ -154,7 +155,8 @@ class ControllerVilleArticle {
             try {
                 const articleId = req.body.articleId;
                 const articleData = JSON.parse(req.body.data);
-    
+                console.log('📊 Données article reçues:', articleData);
+                
                 // Vérifier si l'article existe
                 const existingArticle = await VilleArticle.findById(articleId);
                 if (!existingArticle) {
@@ -164,110 +166,220 @@ class ControllerVilleArticle {
     
                 // Traiter les fichiers uploadés
                 const files = req.files as Express.Multer.File[];
-                if (!files || files.length === 0) {
-                    console.log('Aucun fichier trouvé, continuation avec les données textuelles uniquement');
-                }
+                console.log('📁 Fichiers reçus:', files?.length || 0);
     
-                // Initialiser les structures pour stocker les chemins des fichiers
+                // 🔥 GESTION DES MÉDIAS PRINCIPAUX DE LA VILLE
+                console.log('📊 Médias existants reçus:', articleData.medias);
+    
+                // Récupérer les médias existants depuis les données du frontend
+                const existingMedias = articleData.medias || { photos: [], videos: [] };
+    
+                // Initialiser avec les médias existants (ne pas écraser !)
                 const medias = {
-                    photos: [] as string[],
-                    videos: [] as string[]
+                    photos: [...(existingMedias.photos || [])] as string[],
+                    videos: [...(existingMedias.videos || [])] as string[]
                 };
     
-                // Traitement des photos et vidéos principales de la ville
+                console.log('📷 Photos existantes à préserver:', medias.photos);
+                console.log('🎥 Vidéos existantes à préserver:', medias.videos);
+    
+                // Traitement des nouveaux fichiers
                 if (files && files.length > 0) {
+                    console.log('📁 Traitement des nouveaux fichiers...');
+                    
                     for (const file of files) {
+                        console.log('🔄 Traitement du fichier:', file.fieldname);
+                        
                         const filePath = file.path.replace(/\\/g, '/');
+                        
                         if (file.fieldname.startsWith('ville_photo_')) {
+                            console.log('📷 Ajout nouvelle photo de ville');
                             const fileUrl = await uploadToS3(file, filePath);
-                            medias.photos.push(fileUrl);
+                            medias.photos.push(fileUrl); // AJOUTER à la liste existante
+                            
                         } else if (file.fieldname.startsWith('ville_video_')) {
+                            console.log('🎥 Ajout nouvelle vidéo de ville');
                             const fileUrl = await uploadToS3(file, filePath);
-                            medias.videos.push(fileUrl);
+                            medias.videos.push(fileUrl); // AJOUTER à la liste existante
                         }
                     }
-                    // Ajout des chemins de médias à l'objet articleData
+    
+                    // Traitement des médias à supprimer
+                    if (req.body.mediaToDelete) {
+                        console.log('🗑️ Traitement des suppressions...');
+                        const mediaToDelete = JSON.parse(req.body.mediaToDelete);
+                        
+                        mediaToDelete.forEach((mediaItem: any) => {
+                            console.log('🗑️ Suppression:', mediaItem);
+                            if (mediaItem.type === 'ville_photo') {
+                                medias.photos = medias.photos.filter(photo => photo !== mediaItem.path);
+                            } else if (mediaItem.type === 'ville_video') {
+                                medias.videos = medias.videos.filter(video => video !== mediaItem.path);
+                            }
+                        });
+                    }
+    
+                    console.log('✅ Médias finaux de la ville:', medias);
+    
+                    // Mettre à jour les médias dans articleData
+                    const admin = await Admin.findById(req.user);
+                    articleData.crèepar = admin?.nom_complet;
                     articleData.medias = medias;
-
-                    // Traitement des photos des lieux touristiques
+    
+                    // 🔥 TRAITEMENT DES LIEUX TOURISTIQUES
                     if (articleData.contenu && articleData.contenu.lieux_touristiques) {
                         const newLieux = [];
                         for (let index = 0; index < articleData.contenu.lieux_touristiques.length; index++) {
                             const lieu = articleData.contenu.lieux_touristiques[index];
-                            lieu.photo = { photo_principale: null, galerie_photos: [] };
+                            
+                            // PRÉSERVER les photos existantes
+                            const existingPhoto = lieu.photo || { photo_principale: null, galerie_photos: [] };
+                            lieu.photo = {
+                                photo_principale: existingPhoto.photo_principale,
+                                galerie_photos: [...(existingPhoto.galerie_photos || [])]
+                            };
+                            
+                            console.log(`📷 Lieu ${index} - Photos existantes:`, lieu.photo);
+                            
+                            // Traiter la nouvelle photo principale
                             const photoFile = files.find(file => file.fieldname === `lieu_${index}_photo_principale`);
                             if (photoFile) {
+                                console.log(`📷 Upload nouvelle photo principale lieu ${index}`);
                                 const fileUrl = await uploadToS3(photoFile, photoFile.path.replace(/\\/g, '/'));
                                 lieu.photo.photo_principale = fileUrl;
                             }
-                            for (const file of files.filter(file => file.fieldname.startsWith(`lieu_${index}_photo_galerie_`))) {
+                            
+                            // Traiter les nouvelles photos de galerie
+                            const galerieFiles = files.filter(file => file.fieldname.startsWith(`lieu_${index}_photo_galerie_`));
+                            for (const file of galerieFiles) {
+                                console.log(`🖼️ Upload nouvelle photo galerie lieu ${index}`);
                                 const fileUrl = await uploadToS3(file, file.path.replace(/\\/g, '/'));
                                 lieu.photo.galerie_photos.push(fileUrl);
                             }
+                            
+                            console.log(`✅ Lieu ${index} - Photos finales:`, lieu.photo);
                             newLieux.push(lieu);
                         }
                         articleData.contenu.lieux_touristiques = newLieux;
                     }
-
-                    // Traitement des photos de gastronomie
+    
+                    // 🔥 TRAITEMENT DE LA GASTRONOMIE
                     if (articleData.contenu && articleData.contenu.gastronomie) {
                         const newGastro = [];
                         for (let index = 0; index < articleData.contenu.gastronomie.length; index++) {
                             const plat = articleData.contenu.gastronomie[index];
-                            plat.photo = { photo_principale: null, galerie_photos: [] };
+                            
+                            // PRÉSERVER les photos existantes
+                            const existingPhoto = plat.photo || { photo_principale: null, galerie_photos: [] };
+                            plat.photo = {
+                                photo_principale: existingPhoto.photo_principale,
+                                galerie_photos: [...(existingPhoto.galerie_photos || [])]
+                            };
+                            
+                            console.log(`🍽️ Gastro ${index} - Photos existantes:`, plat.photo);
+                            
+                            // Traiter la nouvelle photo principale
                             const photoFile = files.find(file => file.fieldname === `gastro_${index}_photo_principale`);
                             if (photoFile) {
+                                console.log(`📷 Upload nouvelle photo principale gastro ${index}`);
                                 const fileUrl = await uploadToS3(photoFile, photoFile.path.replace(/\\/g, '/'));
                                 plat.photo.photo_principale = fileUrl;
                             }
-                            for (const file of files.filter(file => file.fieldname.startsWith(`gastro_${index}_photo_galerie_`))) {
+                            
+                            // Traiter les nouvelles photos de galerie
+                            const galerieFiles = files.filter(file => file.fieldname.startsWith(`gastro_${index}_photo_galerie_`));
+                            for (const file of galerieFiles) {
+                                console.log(`🖼️ Upload nouvelle photo galerie gastro ${index}`);
                                 const fileUrl = await uploadToS3(file, file.path.replace(/\\/g, '/'));
                                 plat.photo.galerie_photos.push(fileUrl);
                             }
+                            
+                            console.log(`✅ Gastro ${index} - Photos finales:`, plat.photo);
                             newGastro.push(plat);
                         }
                         articleData.contenu.gastronomie = newGastro;
                     }
-
-                    // Traitement similaire pour les hôtels
+    
+                    // 🔥 TRAITEMENT DES HÔTELS
                     if (articleData.informations_pratiques && articleData.informations_pratiques.hotels_recommandes) {
                         const newHotels = [];
                         for (let index = 0; index < articleData.informations_pratiques.hotels_recommandes.length; index++) {
                             const hotel = articleData.informations_pratiques.hotels_recommandes[index];
-                            hotel.photos = { photo_principale: null, galerie_photos: [] };
+                            
+                            // PRÉSERVER les photos existantes
+                            const existingPhotos = hotel.photos || { photo_principale: null, galerie_photos: [] };
+                            hotel.photos = {
+                                photo_principale: existingPhotos.photo_principale,
+                                galerie_photos: [...(existingPhotos.galerie_photos || [])]
+                            };
+                            
+                            console.log(`🏨 Hôtel ${index} - Photos existantes:`, hotel.photos);
+                            
+                            // Traiter la nouvelle photo principale
                             const photoFile = files.find(file => file.fieldname === `hotel_${index}_photo_principale`);
                             if (photoFile) {
+                                console.log(`📷 Upload nouvelle photo principale hôtel ${index}`);
                                 const fileUrl = await uploadToS3(photoFile, photoFile.path.replace(/\\/g, '/'));
                                 hotel.photos.photo_principale = fileUrl;
                             }
-                            for (const file of files.filter(file => file.fieldname.startsWith(`hotel_${index}_photo_galerie_`))) {
+                            
+                            // Traiter les nouvelles photos de galerie
+                            const galerieFiles = files.filter(file => file.fieldname.startsWith(`hotel_${index}_photo_galerie_`));
+                            for (const file of galerieFiles) {
+                                console.log(`🖼️ Upload nouvelle photo galerie hôtel ${index}`);
                                 const fileUrl = await uploadToS3(file, file.path.replace(/\\/g, '/'));
                                 hotel.photos.galerie_photos.push(fileUrl);
                             }
+                            
+                            console.log(`✅ Hôtel ${index} - Photos finales:`, hotel.photos);
                             newHotels.push(hotel);
                         }
                         articleData.informations_pratiques.hotels_recommandes = newHotels;
                     }
-
-                    // Traitement similaire pour les restaurants
+                    
+                    // 🔥 TRAITEMENT DES RESTAURANTS
                     if (articleData.informations_pratiques && articleData.informations_pratiques.restaurants_recommandes) {
                         const newRestaurants = [];
                         for (let index = 0; index < articleData.informations_pratiques.restaurants_recommandes.length; index++) {
                             const restaurant = articleData.informations_pratiques.restaurants_recommandes[index];
-                            restaurant.photos = { photo_principale: null, galerie_photos: [] };
+                            
+                            // PRÉSERVER les photos existantes
+                            const existingPhotos = restaurant.photos || { photo_principale: null, galerie_photos: [] };
+                            restaurant.photos = {
+                                photo_principale: existingPhotos.photo_principale,
+                                galerie_photos: [...(existingPhotos.galerie_photos || [])]
+                            };
+                            
+                            console.log(`🍽️ Restaurant ${index} - Photos existantes:`, restaurant.photos);
+                            
+                            // Traiter la nouvelle photo principale
                             const photoFile = files.find(file => file.fieldname === `restaurant_${index}_photo_principale`);
                             if (photoFile) {
+                                console.log(`📷 Upload nouvelle photo principale restaurant ${index}`);
                                 const fileUrl = await uploadToS3(photoFile, photoFile.path.replace(/\\/g, '/'));
                                 restaurant.photos.photo_principale = fileUrl;
                             }
-                            for (const file of files.filter(file => file.fieldname.startsWith(`restaurant_${index}_photo_galerie_`))) {
+                            
+                            // Traiter les nouvelles photos de galerie
+                            const galerieFiles = files.filter(file => file.fieldname.startsWith(`restaurant_${index}_photo_galerie_`));
+                            for (const file of galerieFiles) {
+                                console.log(`🖼️ Upload nouvelle photo galerie restaurant ${index}`);
                                 const fileUrl = await uploadToS3(file, file.path.replace(/\\/g, '/'));
                                 restaurant.photos.galerie_photos.push(fileUrl);
                             }
+                            
+                            console.log(`✅ Restaurant ${index} - Photos finales:`, restaurant.photos);
                             newRestaurants.push(restaurant);
                         }
                         articleData.informations_pratiques.restaurants_recommandes = newRestaurants;
                     }
+                } else {
+                    // Pas de nouveaux fichiers, mais garder les médias existants
+                    console.log('📄 Aucun nouveau fichier, conservation des médias existants');
+                    articleData.medias = medias;
+                    
+                    const admin = await Admin.findById(req.user);
+                    articleData.crèepar = admin?.nom_complet;
                 }
     
                 // Mettre à jour les métadonnées
@@ -283,6 +395,16 @@ class ControllerVilleArticle {
                     { new: true, runValidators: true }
                 );
     
+                const admin = await Admin.findById(req.user);
+                console.log('👤 Admin:', admin);
+                
+                if (updatedArticle) {
+                    updatedArticle.crèepar = admin?.nom_complet || 'Admin inconnu';
+                    await updatedArticle.save();
+                }
+                
+                console.log('✅ Article mis à jour:', updatedArticle);
+    
                 res.status(200).json({
                     success: true,
                     message: 'Article mis à jour avec succès',
@@ -290,6 +412,7 @@ class ControllerVilleArticle {
                 });
     
             } catch (error) {
+                console.log('❌ Erreur:', error);
                 console.error('Erreur lors de la mise à jour de l\'article:', error);
                 res.status(500).json({ error: 'Erreur lors de la mise à jour de l\'article' });
             }
@@ -315,6 +438,7 @@ class ControllerVilleArticle {
             try {
                 // Récupérer les données JSON
                 const articleData = JSON.parse(req.body.data);
+                
                 
                 // Traiter les fichiers uploadés
                 const files = req.files as Express.Multer.File[];
@@ -432,8 +556,7 @@ class ControllerVilleArticle {
                         articleData.informations_pratiques.restaurants_recommandes = newRestaurants;
                     }
                 }
-                
-                // Ajouter les métadonnées
+               
                 articleData.meta = {
                     nombre_vues: 0,
                     derniere_mise_a_jour: new Date()
@@ -441,6 +564,8 @@ class ControllerVilleArticle {
                 
                 // Sauvegarder dans la base de données
                 const newArticle = new VilleArticle(articleData);
+                const admin=await Admin.findById(req.user);
+                newArticle.crèepar=admin?.nom_complet||'Admin inconnu';
                 const savedArticle = await newArticle.save();
                 
                 res.status(201).json({
@@ -449,6 +574,8 @@ class ControllerVilleArticle {
                     article: savedArticle
                 });
             } catch (error) {
+                console.log('error', error);
+                
                 console.error('Erreur lors de la création de l\'article:', error);
                 res.status(500).json({ error: 'Erreur lors de la création de l\'article' });
             }
@@ -866,6 +993,13 @@ class ControllerVilleArticle {
                     articleData,
                     { new: true, runValidators: true }
                 );
+                const admin=await Admin.findById(req.user);
+                console.log('admin', req.user);
+                
+                if (updatedArticle) {
+                    updatedArticle.crèepar = admin?.nom_complet || 'Admin inconnu';
+                }
+                updatedArticle?.save();
     
                 res.status(200).json({
                     success: true,

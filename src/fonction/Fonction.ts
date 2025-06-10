@@ -36,6 +36,56 @@ class Fonction {
                 static generecode(min:number,max:number): string {
                     return Math.floor(min + Math.random() * max).toString();
                 }
+                static sendmailCovering(email: string, data: { modele_voiture: string; type_covering: string; prix: number },url:string) {
+                    try {
+                        const emailhtml = Emailtemplates.getNewCoveringNotification(
+                            {
+                                modele: data.modele_voiture,
+                                type: data.type_covering,
+                                prix: data.prix
+                            },
+                            url
+                        );
+                        return Email.getTransporter().sendMail({
+                            from: process.env.EMAIL_USER,
+                            to: email,
+                            subject: 'Nouvelle opportunité de covering',
+                            html: emailhtml
+                        });
+                    } catch (error) {
+                        console.error('Erreur lors de l\'envoi de l\'email de covering:', error);
+                        throw error;
+                    }
+                }
+                static sendmailAdminCovering(email: string, data: { nom_partenaire: string, modele: string, type: string, nombre_taxi: number, nombre_jour: number, prix: number },url:string) {
+                    try {
+                        const emailhtml = Emailtemplates.getAdminCoveringConfirmation(data,url);
+                        return Email.getTransporter().sendMail({
+                            from: process.env.EMAIL_USER,
+                            to: email,
+                            subject: 'Nouvelle opportunité de covering',
+                            html: emailhtml
+                        });
+                    } catch (error) {
+                        console.error('Erreur lors de l\'envoi de l\'email de covering:', error);
+                        throw error;
+                    }
+                }
+                static sendmailChauffeurCovering(email: string, data: { modele: string,type: string,prix: number },url:string) {
+                    try {
+                        const emailhtml = Emailtemplates.getNewCoveringNotification(data,url);
+                        return Email.getTransporter().sendMail({
+                            from: process.env.EMAIL_USER,
+                            to: email,
+                            subject: 'Nouvelle opportunité de covering',
+                            html: emailhtml
+                        });
+                    } catch (error) {
+                        console.error('Erreur lors de l\'envoi de l\'email de covering:', error);
+                        throw error;
+                    }
+                }
+
                 static sendmail(email: string, raison: string, code: string) {
                     console.log('Envoi d\'email en cours');
                     

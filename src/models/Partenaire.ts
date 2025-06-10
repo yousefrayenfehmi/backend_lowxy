@@ -3,7 +3,6 @@ import { IPartenaire } from "../Interface/InterfacePartenair";
 
 
 const partenaireSchema = new Schema<IPartenaire>({
-    _id: { type: Schema.Types.ObjectId, required: true },
     inforamtion: {
         inforegester: {
             nom_entreprise: {
@@ -51,6 +50,7 @@ const partenaireSchema = new Schema<IPartenaire>({
             plan: String
         }, 
         images: [String],
+        commission: {type: Number,required: true,default:20},
         jours: [{
             date: Date,
             depart: String,

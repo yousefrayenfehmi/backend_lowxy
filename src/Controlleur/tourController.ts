@@ -99,6 +99,8 @@ class TourController {
             if (!partenaire) return;
 
             const tourData = req.body;
+            //ajouter commission
+            tourData.commission=20;
             
             // Valider les données du tour
             if (!tourData.nom || !tourData.description || !tourData.ville || !tourData.duree) {
@@ -368,6 +370,7 @@ class TourController {
                         partenaireNom: partenaire.inforamtion.inforegester.nom_entreprise,
                         nom: tour.nom,
                         description: tour.description,
+                        commission: tour.commission,
                         ville: tour.ville,
                         duree: tour.duree,
                         itineraire: tour.itineraire,

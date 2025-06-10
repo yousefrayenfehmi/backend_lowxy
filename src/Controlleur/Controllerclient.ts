@@ -134,6 +134,52 @@ async uploadfacture(req: Request, res: Response): Promise<void> {
         }
     });
 }
+
+
+async Clientquizz(req: Request, res: Response): Promise<void>{
+    if (mongoose.connection.readyState !== 1) {
+        await dbConnection.getConnection();
+    }
+    try {
+        const touriste = await Touristes.find({ "historique_quiz.0": { $exists: true } });
+        if (!touriste) {
+            res.status(404).json({ error: 'Aucun touriste a passé un quizz' });
+        }
+        res.status(200).json(touriste);
+    } catch (error) {
+        res.status(500).json({ error: 'Erreur lors de la récupération des touristes qui ont passé un quizz' });
+    }
+    
+    
+}
+
+async sauvgarderMontatnt(req: Request, res: Response): Promise<void>{
+    if (mongoose.connection.readyState !== 1) {
+        await dbConnection.getConnection();
+    }
+    try {
+        const { montant } = req.body;
+        const id=req.params.id;
+        const touriste = await Touristes.findOneAndUpdate(
+            { 'historique_quiz._id': id },
+            { $set: { 'historique_quiz.$.prix': montant } },
+            { new: true }
+        );
+        
+
+        res.status(200).json({ message: 'Montant sauvegardé avec succès' });
+    } catch (error) {
+        console.log(error);
+        res.status(500).json({ error: 'Erreur lors de la sauvegarde du montant' });
+    }
+    
+    
+}
+
+
+
+
+
     
     async getTouristeByToken(req: Request, res: Response): Promise<void> {
         try {

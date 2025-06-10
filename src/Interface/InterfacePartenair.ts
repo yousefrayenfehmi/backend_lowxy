@@ -31,6 +31,7 @@ export interface IPartenaire extends Document {
             arrivee: string;
             plan: string;
         };
+        commission: number;
         images: string[];
         jours: Array<{
             _id?: Types.ObjectId;

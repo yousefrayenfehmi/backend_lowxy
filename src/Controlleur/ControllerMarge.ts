@@ -15,25 +15,28 @@ class MargeController {
         }
 
         try {
-            if (req.body.actif) {
-                await Marge.updateMany(
-                    { tourId: req.body.tourId, actif: true },
-                    { actif: false }
-                );
+            console.log('req.body', req.body);
+            console.log(req.user);
+            const idtour=req.body.tourId;
+            const id=req.user;
+            const partenaire=await Partenaires.findOne({'tours._id':idtour});
+
+            if(!partenaire){
+                res.status(404).json({error:'Tour non trouvé'});
+                return;
             }
-            
-            const marge = new Marge({
-                ...req.body,
-                modifiePar: req.body.modifiePar || 'Admin',
-                dateModification: new Date()
+            partenaire.tours.forEach((tour:any)=>{
+                if(tour._id.toString()===idtour){
+                    tour.commission=req.body.pourcentage;
+                }
             });
-            
-            const savedMarge = await marge.save();
+            await partenaire.save();
             res.status(201).json({
                 success: true,
-                marge: savedMarge
+                marge: partenaire
             });
         } catch (error) {
+            console.log('error', error);
             res.status(500).json({ 
                 success: false,
                 error: error 
@@ -49,7 +52,16 @@ class MargeController {
         });
     }
     try{
-        const marges=await Marge.find();
+        const partenaire=await Partenaires.find();
+        const marges=partenaire.map((partenaire:any)=>{
+            return partenaire.tours.map((tour:any)=>{
+                if(tour.commission){
+                    return tour;
+                }
+            })
+        }).flat();
+        console.log('marges', marges);
+        
         res.status(200).json({success:true,marges:marges});
     }catch(error){
         res.status(500).json({success:false,error:error});
@@ -79,171 +91,11 @@ class MargeController {
         } 
     }
 
-    async getMargeById(req: Request, res: Response): Promise<void> {
-        if (mongoose.connection.readyState !== 1) {
-            await dbConnection.getConnection().catch(error => {
-                res.status(500).json({ error: 'Erreur de connexion à la base de données' });
-                return;
-            });
-        }
+    
 
-        try {
-            const { id } = req.params;
-            const marge = await Marge.findById(id).populate('tourId', 'nom ville');
-            if (!marge) {
-                res.status(404).json({
-                    success: false,
-                    message: 'Marge non trouvée'
-                });
-                return;
-            }
-            res.status(200).json({
-                success: true,
-                marge: marge
-            });
-        } catch (error) {
-            res.status(500).json({
-                success: false,
-                error: 'Erreur lors de la recherche de la marge'
-            });
-        } 
-    }
+    
 
-    async updateMarge(req: Request, res: Response): Promise<void> {
-        if (mongoose.connection.readyState !== 1) {
-            await dbConnection.getConnection().catch(error => {
-                res.status(500).json({ error: 'Erreur de connexion à la base de données' });
-                return;
-            });
-        }
-
-        try {
-            const { id } = req.params;
-            
-            // Récupérer la marge existante
-            const existingMarge = await Marge.findById(id);
-            if (!existingMarge) {
-                res.status(404).json({ 
-                    success: false,
-                    message: 'Marge non trouvée' 
-                });
-                return;
-            }
-            
-            // Si la marge est activée et n'était pas active avant, désactiver les autres marges pour ce tour
-            if (req.body.actif && !existingMarge.actif) {
-                await Marge.updateMany(
-                    { tourId: existingMarge.tourId, actif: true },
-                    { actif: false }
-                );
-            }
-            
-            // Mettre à jour avec les nouvelles valeurs
-            const updatedData = {
-                ...req.body,
-                dateModification: new Date(),
-                modifiePar: req.body.modifiePar || existingMarge.modifiePar
-            };
-            
-            const marge = await Marge.findByIdAndUpdate(
-                id,
-                updatedData,
-                { new: true, runValidators: true }
-            );
-            
-            res.status(200).json({
-                success: true,
-                marge: marge
-            });
-        } catch (error) {
-            res.status(500).json({ 
-                success: false,
-                error: error 
-            });
-        } 
-    }
-
-    async toggleMargeStatus(req: Request, res: Response): Promise<void> {
-        if (mongoose.connection.readyState !== 1) {
-            await dbConnection.getConnection().catch(error => {
-                res.status(500).json({ error: 'Erreur de connexion à la base de données' });
-                return;
-            });
-        }
-
-        try {
-            const { id } = req.params;
-            const { actif } = req.body;
-            
-            const marge = await Marge.findById(id);
-            if (!marge) {
-                res.status(404).json({ 
-                    success: false,
-                    message: 'Marge non trouvée' 
-                });
-                return;
-            }
-            
-            // Si la marge va être activée, désactiver les autres
-            if (actif) {
-                await Marge.updateMany(
-                    { tourId: marge.tourId, actif: true },
-                    { actif: false }
-                );
-            }
-            
-            // Mettre à jour le statut de la marge
-            marge.actif = actif;
-            marge.dateModification = new Date();
-            if (req.body.modifiePar) {
-                marge.modifiePar = req.body.modifiePar;
-            }
-            
-            await marge.save();
-            
-            res.status(200).json({
-                success: true,
-                marge: marge
-            });
-        } catch (error) {
-            res.status(500).json({ 
-                success: false,
-                error: error 
-            });
-        }
-    }
-
-    async deleteMarge(req: Request, res: Response): Promise<void> {
-        if (mongoose.connection.readyState !== 1) {
-            await dbConnection.getConnection().catch(error => {
-                res.status(500).json({ error: 'Erreur de connexion à la base de données' });
-                return;
-            });
-        }
-
-        try {
-            const { id } = req.params;
-            console.log('je lena sayer');
-            
-            const marge = await Marge.findByIdAndDelete(id);
-            if (!marge) {
-                res.status(404).json({ 
-                    success: false,
-                    message: 'Marge non trouvée' 
-                });
-                return;
-            }
-            res.status(200).json({ 
-                success: true,
-                message: 'Marge supprimée avec succès' 
-            });
-        } catch (error) {
-            res.status(500).json({ 
-                success: false,
-                error: error 
-            });
-        } 
-    }
+    
 
     async getMargeStats(req: Request, res: Response): Promise<void> {
         console.log("getMargeStats called");
@@ -291,61 +143,17 @@ class MargeController {
         }
 
         try {
-            const { pourcentage, montantFixe } = req.body;
-            const modifiePar = req.body.modifiePar || 'Admin';
-            console.log('modifiePar', modifiePar);
-            
-            // Désactiver toutes les marges existantes
-            const marges = await Marge.deleteMany();
-            console.log('marges désactivées', marges);
-            
-            // Récupérer tous les partenaires avec leurs tours
-            const partenaires = await Partenaires.find();
-            console.log('Nombre de partenaires trouvés:', partenaires);
-            
-            // Collecter tous les tours de tous les partenaires
-            let allTours: { _id: any; prix:  number  }[] = [];
-            partenaires.forEach(partenaire => {
-                if (partenaire.tours && Array.isArray(partenaire.tours)) {
-                    partenaire.tours.forEach((tour: any) => {
-                        if (tour && tour._id) {
-                            allTours.push({
-                                _id: tour._id,
-                                prix: tour.jours[0].prix
-                            });
-                        }
-                    });
-                }
-            });
-            
-            console.log('Nombre total de tours:', allTours);
-            
-            if (allTours.length === 0) {
-                res.status(200).json({
-                    success: true,
-                    message: "Aucun tour trouvé pour appliquer la marge globale"
+            const { pourcentage}= req.body;
+            const partenaire=await Partenaires.find();
+            partenaire.forEach(async(partenaire:any)=>{
+                partenaire.tours.forEach((tour:any)=>{
+                    tour.commission=pourcentage;
                 });
-                return;
-            }
-            
-            // Créer une nouvelle marge pour chaque tour
-            const margesPromises = allTours.map(tour => {
-                return new Marge({
-                    tourId: tour._id,
-                    pourcentage,
-                    montantFixe: (tour.prix*pourcentage)/100,
-                    dateModification: new Date(),
-                    modifiePar,
-                    actif: true
-                }).save();
+                await partenaire.save();
             });
+            console.log('partenaire', partenaire);
             
-            await Promise.all(margesPromises);
-            
-            res.status(200).json({
-                success: true,
-                message: `Marge globale de ${pourcentage}% appliquée à ${allTours.length} tours`
-            });
+            res.status(200).json({success:true,message:'Marge globale appliquée avec succès'});
         } catch (error) {
             console.error("Erreur lors de l'application de la marge globale:", error);
             res.status(500).json({ 
