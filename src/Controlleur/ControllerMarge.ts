@@ -4,6 +4,8 @@ import { dbConnection } from '../BDconnection/BDconnection';
 import mongoose from 'mongoose';
 import { Partenaires } from '../models/Partenaire';
 import { float } from 'aws-sdk/clients/cloudfront';
+import { Touristes } from '../models/Touriste';
+import { Chauffeurs } from '../models/Chauffeure';
 
 class MargeController {
     async createMarge(req: Request, res: Response): Promise<void> {
@@ -163,6 +165,156 @@ class MargeController {
             });
         } 
     }
-}
 
+    async statMarge(req:Request,res:Response):Promise<void>{
+        if (mongoose.connection.readyState !== 1) {
+            await dbConnection.getConnection().catch(error => {
+                res.status(500).json({ error: 'Erreur de connexion à la base de données' });
+                return;
+            });
+        }
+            try {
+                const partenaires = await Partenaires.find();
+                console.log('Nombre de partenaires trouvés:', partenaires.length);
+                const touriste=await Touristes.find();
+                const chauffeurs=await Chauffeurs.find();
+                // Récupérer les réservations confirmées de chaque partenaire avec id partenaire et id tour
+                const reservationsConfirmees: any[] = [];
+                
+                partenaires.forEach((partenaire: any) => {
+                    console.log(`Partenaire: ${partenaire._id}, Tours: ${partenaire.tours?.length || 0}`);
+                    
+                    if (partenaire.tours && Array.isArray(partenaire.tours)) {
+                        partenaire.tours.forEach((tour: any) => {
+                            console.log(`  Tour: ${tour._id}, Jours: ${tour.jours?.length || 0}`);
+                            
+                            if (tour.jours && Array.isArray(tour.jours)) {
+                                tour.jours.forEach((jour: any) => {
+                                    console.log(`    Jour: ${jour._id}, Réservations: ${jour.reservations?.length || 0}`);
+                                    
+                                    if (jour.reservations && Array.isArray(jour.reservations)) {
+                                                                                jour.reservations.forEach((reservation: any) => {
+                                            if (reservation.statut === 'confirmée') {
+                                               
+                                                let touristeCorrespondant = null;
+                                                let methodeTrouvee = 'Aucune';
+                                                
+                                                for (let i = 0; i < touriste.length; i++) {
+                                                    const t = touriste[i];
+                                                    
+                                                   
+                                                    
+                                                    // Méthode 2: equals() pour ObjectId
+                                                    if (t._id.equals && t._id.equals(reservation.client_id)) {
+                                                        touristeCorrespondant = t;
+                                                        methodeTrouvee = 'equals()';
+                                                        console.log('✅ TROUVÉ avec equals()');
+                                                        break;
+                                                    }
+                                                    
+                                                   
+                                                }
+                                                
+                                               
+                                                
+                                                const matricule = touristeCorrespondant?.info?.matricule_taxi || 'Non trouvé';
+                                                const chauffeurCorrespondant = chauffeurs.find((chauffeur: any) => chauffeur.info.matricule===matricule);
+                                                 
+                                                reservationsConfirmees.push({
+                                                    reservationId: reservation._id,
+                                                    partenaireId: partenaire._id,
+                                                    partenaireName: partenaire.inforamtion.inforegester.nom_entreprise,
+                                                    tourId: tour._id,
+                                                    jourId: jour._id,
+                                                    clientId: reservation.client_id,
+                                                    matriculeTouriste: matricule,
+                                                    nomCompletTouriste: touristeCorrespondant?.info?.nom_complet || 'Non trouvé',
+                                                    prix_total: reservation.prix_total || 0,
+                                                    commission: tour.commission || 20,
+                                                    commission_montant: ((reservation.prix_total || 0) * (tour.commission || 20)) / 100,
+                                                    chauffeurID:chauffeurCorrespondant?._id,
+                                                    chauffeurname:chauffeurCorrespondant?.info.nom_complet,
+                                                    
+                                                    
+                                                    
+                                                });
+                                            }
+                                        });
+                                    }
+                                });
+                            }
+                        });
+                    }
+                });
+                //calculer totale de prix totale
+                let partenairegagnant:any[]=[];
+                let prixlowxy=0
+                const prixmarge=reservationsConfirmees.reduce((acc,reservation)=>acc+reservation.prix_total,0);
+                const  chauffeurgagant:any[]=[];
+                reservationsConfirmees.map((reservation)=>{
+
+                    prixlowxy+=reservation.prix_total*(reservation.commission/2)/100;
+                console.log('hhhhh');
+                    if(partenairegagnant.length===0){
+                        partenairegagnant.push({
+                            _id:reservation.partenaireId,
+                            nom:reservation.partenaireName,
+                            prix:reservation.prix_total-reservation.prix_total*(reservation.commission/2)/100
+                        });
+                    }
+                    else{
+                        partenairegagnant.map(partenaire=>{
+                            if(partenaire._id==reservation.partenaireId){
+                                partenaire.prix+=reservation.prix_total-reservation.prix_total*(reservation.commission/2)/100;
+                            }
+                            else{
+                                partenairegagnant.push({
+                                    _id:reservation.partenaireId,
+                                    nom:reservation.partenaireName,
+                                    prix:reservation.prix_total-reservation.prix_total*(reservation.commission/2)/100
+                                });
+                            }
+                        })
+                    }
+                    if(chauffeurgagant.length===0){
+                        chauffeurgagant.push({
+                            _id:reservation.chauffeurID,
+                            nom:reservation.chauffeurname,
+                            prix:reservation.prix_total*(reservation.commission/2)/100
+                        });
+                    }
+                    else{
+                        chauffeurgagant.map(chauffer=>{
+                            if(chauffer._id==reservation.chauffeurID){
+                                chauffer.prix+=reservation.prix_total*(reservation.commission/2)/100;
+                            }
+                            else{
+                                chauffeurgagant.push({
+                                    _id:reservation.chauffeurID,
+                                    nom:reservation.chauffeurname,
+                                    prix:reservation.prix_total*(reservation.commission/2)/100
+                                });
+                            }
+                        })
+                    }
+                });
+                
+                
+                    
+                res.status(200).json({
+                    success: true,
+                    reservations: reservationsConfirmees,
+                    
+                    prixTotal:prixmarge,
+                    partenaireGagnant:partenairegagnant,
+                    prixlowxy:prixlowxy,
+                    chauffeurGagant:chauffeurgagant
+                });
+            } catch (error) {
+                console.log('error', error);
+                res.status(500).json({success:false,error:error});
+            }
+    }
+
+}
 export const ControllerMargeInstance = new MargeController();
