@@ -110,7 +110,7 @@ class Routeadmin {
         router.get('/touriste-quizz',controllerAdminInstance.verifyToken,controllerclientInstance.Clientquizz)
         router.put('/touriste-quizz/:id',controllerAdminInstance.verifyToken,controllerclientInstance.sauvgarderMontatnt)
         router.get('/config-publicite',ControllerConfigpubliciteInstance.getConfiguration)
-        router.get('/stat',controllerAdminInstance.verifyToken,ControllerMargeInstance.statMarge)
+        router.get('/marges/stats',controllerAdminInstance.verifyToken,ControllerMargeInstance.statMarge)
 
     }
 }
