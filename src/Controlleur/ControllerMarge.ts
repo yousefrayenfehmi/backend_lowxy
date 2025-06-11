@@ -303,12 +303,10 @@ class MargeController {
                     
                 res.status(200).json({
                     success: true,
-                    reservations: reservationsConfirmees,
-                    
                     prixTotal:prixmarge,
                     partenaireGagnant:partenairegagnant,
                     prixlowxy:prixlowxy,
-                    chauffeurGagant:chauffeurgagant
+                    chauffeurGagant:chauffeurgagant,
                 });
             } catch (error) {
                 console.log('error', error);
