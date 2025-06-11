@@ -142,6 +142,30 @@ class controllerchauffeur {
 
 }
 
+async verifierchauffeur(req: Request, res: Response): Promise<void> {
+    if (mongoose.connection.readyState !== 1) {
+        await dbConnection.getConnection().catch(error => {
+            res.status(500).json({ error: 'Erreur de connexion à la base de données' });
+            return;
+        })
+    }
+    try {
+        const matricule=req.body.matricule;
+        const chauffeur=await Chauffeurs.findOne({'info.matricule':matricule});
+        if(chauffeur){
+            res.status(200).json({success:true, chauffeur:chauffeur});
+            return;
+        }
+        else{
+            res.status(404).json({error:'Chauffeur non trouvé'});
+            return;
+        }
+        
+    } catch (error) {
+        console.log(error);
+        res.status(500).json({error:'Erreur lors de la vérification du chauffeur'});
+    }
+}
 
 async authavecfacebook(req: Request, res: Response): Promise<void> {
     if (mongoose.connection.readyState !== 1) {
@@ -232,7 +256,7 @@ try {
             chauffeur.resetPasswordToken = resetToken;
             chauffeur.resetPasswordTokenExpire = resetTokenExpiresAt;
             await chauffeur.save();
-            Fonction.sendmail(email, 'password', resetToken);
+            Fonction.sendmail(email, 'password', process.env.front_end+"/changepassword/" + resetToken);
             res.status(200).json({
                 success: true,
                 message: 'email envoyé avec succès'
@@ -306,7 +330,7 @@ try {
                 token
             });
         } catch (error) {
-            res.status(500).json({ error: 'Erreur lors de la création du chauffeur' });
+            res.status(500).json({ error: error });
         } 
     }
 
@@ -366,16 +390,13 @@ try {
                 'info.nom_complet': req.body.info?.nom_complet ?? chauffeur.info.nom_complet,
                 'info.telephone': req.body.info?.telephone ?? chauffeur.info.telephone,
                 
-                // Champs de date
                 'info.naissance': req.body.info?.naissance ?? chauffeur.info.naissance,
                 
-                // Adresse imbriquée
                 'info.adresse': {
                     'ville': req.body.info?.adresse?.ville ?? chauffeur.info.adresse.ville,
                     'pays': req.body.info?.adresse?.pays ?? chauffeur.info.adresse.pays
                 },
                 
-                // Champs additionnels
                 'info.Rib': req.body.info?.Rib ?? chauffeur.info.Rib,
             };
             

@@ -13,6 +13,7 @@ import { Chauffeurs } from "../models/Chauffeure";
 import { log } from "console";
 import multer from 'multer';
 import { upload } from "./Controllerpartenaire"; 
+import { uploadToS3 } from "./Controllerpartenaire";
     
 class controllerclient {
     constructor() {
@@ -79,6 +80,13 @@ async uploadfacture(req: Request, res: Response): Promise<void> {
             console.log(req.body);
             
             const factureFiles = files['facture'] || [];
+            
+            // Vérifier si des fichiers ont été téléchargés
+            if (!factureFiles.length) {
+                res.status(400).json({ error: 'Aucun fichier de facture téléchargé' });
+                return;
+            }
+            
             const factureDetails = {
                 filename: factureFiles[0]?.filename,
                 originalname: factureFiles[0]?.originalname,
@@ -86,17 +94,39 @@ async uploadfacture(req: Request, res: Response): Promise<void> {
                 size: factureFiles[0]?.size,
                 path: factureFiles[0]?.path,
                 type: 'banner'
-              };
-              const bannerurl = factureFiles.map(bann => bann.path.substring(bann.path.indexOf("uploads"))) as string[];
-              const touriste = await Touristes.findOneAndUpdate(
-                {'historique_quiz._id': req.body.Id_quizz},
-                {$set: {'historique_quiz.$.facture': bannerurl[0]}},
-                {new: true}
-              );
-              console.log(bannerurl);
-
-              
-              res.status(200).json({ message: 'Facture téléchargée avec succès' });
+            };
+            console.log(factureDetails);
+            
+            // Générer un nom de fichier unique pour S3
+            if (!req.body.Id_quizz) {
+                res.status(400).json({ error: 'ID du quiz manquant' });
+                return;
+            }
+            
+            // Créer un chemin de destination pour S3
+            const fileExtension = factureFiles[0].originalname.split('.').pop() || 'jpg';
+            const fileName = `facture-${Date.now()}-${Math.round(Math.random() * 1E9)}.${fileExtension}`;
+            const destination = `factures/${req.body.Id_quizz}/${fileName}`;
+            
+            try {
+                const url = await uploadToS3(factureFiles[0], destination);
+                
+                const touriste = await Touristes.findOneAndUpdate(
+                    {'historique_quiz._id': req.body.Id_quizz},
+                    {$set: {'historique_quiz.$.facture': url}},
+                    {new: true}
+                );
+                
+                if (!touriste) {
+                    res.status(404).json({ error: 'Quiz non trouvé pour ce touriste' });
+                    return;
+                }
+                
+                res.status(200).json({ message: 'Facture téléchargée avec succès' });
+            } catch (error) {
+                console.log(error);
+                res.status(500).json({ error: 'Erreur lors du traitement de la facture' });
+            }
         } catch (error) {
             console.log(error);
             
@@ -104,6 +134,52 @@ async uploadfacture(req: Request, res: Response): Promise<void> {
         }
     });
 }
+
+
+async Clientquizz(req: Request, res: Response): Promise<void>{
+    if (mongoose.connection.readyState !== 1) {
+        await dbConnection.getConnection();
+    }
+    try {
+        const touriste = await Touristes.find({ "historique_quiz.0": { $exists: true } });
+        if (!touriste) {
+            res.status(404).json({ error: 'Aucun touriste a passé un quizz' });
+        }
+        res.status(200).json(touriste);
+    } catch (error) {
+        res.status(500).json({ error: 'Erreur lors de la récupération des touristes qui ont passé un quizz' });
+    }
+    
+    
+}
+
+async sauvgarderMontatnt(req: Request, res: Response): Promise<void>{
+    if (mongoose.connection.readyState !== 1) {
+        await dbConnection.getConnection();
+    }
+    try {
+        const { montant } = req.body;
+        const id=req.params.id;
+        const touriste = await Touristes.findOneAndUpdate(
+            { 'historique_quiz._id': id },
+            { $set: { 'historique_quiz.$.prix': montant } },
+            { new: true }
+        );
+        
+
+        res.status(200).json({ message: 'Montant sauvegardé avec succès' });
+    } catch (error) {
+        console.log(error);
+        res.status(500).json({ error: 'Erreur lors de la sauvegarde du montant' });
+    }
+    
+    
+}
+
+
+
+
+
     
     async getTouristeByToken(req: Request, res: Response): Promise<void> {
         try {
@@ -232,14 +308,15 @@ async uploadfacture(req: Request, res: Response): Promise<void> {
             touriste.resetPasswordTokenExpire = resetTokenExpiresAt;
 
             await touriste.save();
-            Fonction.sendmail(email, 'password', "http://localhost:4200/changepassword/" + resetToken);
+            Fonction.sendmail(email, 'password', process.env.front_end+"/changepassword/" + resetToken);
 
             res.status(200).json({
                 success: true,
                 message: 'email envoyé avec success'
             });
         } catch (error) {
-            res.status(500).json({ error: 'Erreur lors de l\'envoi du mail de réinitialisation' });
+
+            res.status(500).json({ error: "Erreur lors de l'envoi du mail de réinitialisation", errors: error });
         }
     }
 
@@ -753,9 +830,7 @@ async authavecfacebook(req: Request, res: Response): Promise<void> {
             res.status(500).json({ error: 'Erreur lors de la récupération du touriste' });
         }
     }
-
-
-
+   
 
 
 }

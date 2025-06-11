@@ -143,6 +143,44 @@ class EmailTemplates{
             </html>`;
         }
 
+        private ADMIN_COVERING_CONFIRMATION_TEMPLATE(details: {nom_partenaire: string, modele: string, type: string, nombre_taxi: number, nombre_jour: number, prix: number}, adminURL: string): string {
+            return `<!DOCTYPE html>
+            <html lang="fr">
+            <head>
+                <meta charset="UTF-8">
+                <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                <title>Confirmation de Campagne Covering</title>
+            </head>
+            <body style="font-family: Arial, sans-serif; background: #fafafa; padding: 0; margin: 0;">
+                <div style="background: #ff9800; color: #fff; padding: 24px 0; text-align: center; font-size: 2em; font-weight: bold;">
+                    Nouvelle Demande de Campagne Covering à Confirmer
+                </div>
+                <div style="padding: 32px;">
+                    <p>Bonjour,</p>
+                    <p>Une nouvelle demande de campagne covering a été soumise et attend votre confirmation.</p>
+                    <div style="border: 1px solid #ddd; border-radius: 6px; background: #fff; padding: 18px 24px; margin: 24px 0;">
+                        <span style="color: #ff9800; font-weight: bold; font-size: 1.1em;">Détails de la campagne :</span>
+                        <ul style="margin-top: 12px;">
+                            <li><b>Nom du partenaire :</b> ${details.nom_partenaire}</li>
+                            <li><b>Modèle de véhicule :</b> ${details.modele}</li>
+                            <li><b>Type de covering :</b> ${details.type}</li>
+                            <li><b>Nombre de taxis :</b> ${details.nombre_taxi}</li>
+                            <li><b>Nombre de jours :</b> ${details.nombre_jour}</li>
+                            <li><b>Rémunération totale :</b> ${details.prix}€</li>
+                        </ul>
+                    </div>
+                    <p>Merci de vous connecter à l'interface d'administration pour valider ou refuser cette campagne.</p>
+                    <div style="text-align: center; margin: 32px 0;">
+                        <a href="${adminURL}" style="background: #ff9800; color: #fff; padding: 12px 32px; border-radius: 6px; text-decoration: none; font-weight: bold; font-size: 1.1em;">
+                            Gérer la campagne
+                        </a>
+                    </div>
+                    <p>Cordialement,<br>L'équipe LOWXY</p>
+                </div>
+            </body>
+            </html>`;
+        }
+
         getverifauEmail(code: string): string {
             return this.VERIFICATION_EMAIL_TEMPLATE(code);
         }
@@ -154,6 +192,9 @@ class EmailTemplates{
         }
         getNewCoveringNotification(details: {modele: string, type: string, prix: number}, coveringURL: string): string {
             return this.NEW_COVERING_TEMPLATE(details).replace('{coveringURL}', coveringURL);
+        }
+        getAdminCoveringConfirmation(details: {nom_partenaire: string, modele: string, type: string, nombre_taxi: number, nombre_jour: number, prix: number}, adminURL: string): string {
+            return this.ADMIN_COVERING_CONFIRMATION_TEMPLATE(details, adminURL);
         }
 }
 

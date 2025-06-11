@@ -1,5 +1,6 @@
 import express, { Router, Request, Response, NextFunction }  from "express";
 import { ControllerpartenairInstance} from "../Controlleur/Controllerpartenaire"; 
+import { ControllerConfigpubliciteInstance } from "../Controlleur/ControllerConfigpublicite";
 const router: Router = express.Router();
 
  class Routepartenaire{
@@ -41,6 +42,8 @@ const router: Router = express.Router();
             res.status(200).json({ message: 'Token valide' });
           });
         router.post('/partenaire/statistiques',ControllerpartenairInstance.enregisterstatistiques);
+        router.get('/partenaire-config-publicite',ControllerpartenairInstance.verifyToken,ControllerConfigpubliciteInstance.getConfiguration)
+
     }
 
 }

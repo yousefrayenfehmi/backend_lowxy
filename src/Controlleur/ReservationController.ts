@@ -805,9 +805,15 @@ async createPaymentSession(req: AuthRequest, res: Response): Promise<void> {
         });
       }
 
-      const { reservation_id, tour_id, jour_id } = req.body;
+      const { _id, tour_info, jour_info } = req.body;
+      const reservation_id = _id;
+      const tour_id = tour_info.tour_id;
+      const jour_id = jour_info.jour_id;
       const client_id = req.user;
-
+      console.log("--------------------------------");
+      console.log(client_id);
+      console.log(reservation_id, tour_id, jour_id);
+      console.log("--------------------------------");
       if (!client_id || !Types.ObjectId.isValid(client_id)) {
         res.status(401).json({ success: false, message: 'Authentification requise' });
         return;
@@ -853,13 +859,40 @@ async createPaymentSession(req: AuthRequest, res: Response): Promise<void> {
         return;
       }
 
-      // Mettre à jour le statut de la réservation à "confirmée"
-      partenaire.tours[tourIndex].jours[jourIndex].reservations[reservationIndex].statut = 'confirmée';
-      partenaire.tours[tourIndex].jours[jourIndex].reservations[reservationIndex].payment_date = new Date();
+      // Création de la session de paiement Stripe
+      const session = await stripe.checkout.sessions.create({
+        payment_method_types: ['card'],
+        line_items: [
+          {
+            price_data: {
+              currency: 'eur',
+              product_data: {
+                name: `Réservation pour ${partenaire.tours[tourIndex].nom}`,
+                description: `${reservation.participants.adultes} adulte(s) et ${reservation.participants.enfants} enfant(s) pour le ${new Date(reservation.date).toLocaleDateString('fr-FR')}`,
+              },
+              unit_amount: Math.round(reservation.prix_total * 100), // Conversion en centimes
+            },
+            quantity: 1,
+          },
+        ],
+        mode: 'payment',
+        success_url: `${process.env.front_end}/paiment_sucesses/${reservation._id}?data=${encodeURIComponent(JSON.stringify({
+          reservation_id: reservation_id,
+          tour_id: tour_id,
+          jour_id: jour_id,
+          client_id: client_id
+        }))}&type=reservation`,
+        cancel_url: `${process.env.front_end}/paiment_echouee/${reservation._id}?data=${encodeURIComponent(JSON.stringify({
+          tour_id: tour_id
+        }))}&type=reservation`,
+      });
 
-      await partenaire.save();
+      res.status(200).json({ 
+        success: true, 
+        id: session.id,
+        reservation_id: reservation_id
+      });
 
-      res.status(200).json({ success: true, message: 'Réservation complétée avec succès' });
     } catch (error) {
       console.error('Erreur lors de la complétion de la réservation:', error);
       res.status(500).json({ success: false, message: 'Erreur lors de la complétion de la réservation' });

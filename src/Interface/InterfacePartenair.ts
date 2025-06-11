@@ -1,6 +1,7 @@
 import { Document, Types } from "mongoose";
 
-interface IPartenaire extends Document {
+export interface IPartenaire extends Document {
+    _id: Types.ObjectId;
     inforamtion: {
         inforegester: {
             nom_entreprise: string;
@@ -30,6 +31,7 @@ interface IPartenaire extends Document {
             arrivee: string;
             plan: string;
         };
+        commission: number;
         images: string[];
         jours: Array<{
             _id?: Types.ObjectId;

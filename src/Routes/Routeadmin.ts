@@ -6,6 +6,9 @@ import { ControllerpartenairInstance } from "../Controlleur/Controllerpartenaire
 import { controllerchauffeurInstance } from "../Controlleur/Controllerchauffeur";
 import { controllerVilleArticleInstance } from "../Controlleur/Controllervillearticle";
 import { ControllerquestionBankInstance } from "../Controlleur/Controllerquestionquize";
+import { ControllerMargeInstance } from "../Controlleur/ControllerMarge";
+import { Controllercovringads, ControllercovringadsInstance } from "../Controlleur/Controllercovringads";
+import { ControllerConfigpubliciteInstance } from "../Controlleur/ControllerConfigpublicite";
 const router: Router = express.Router();
 class Routeadmin {
     constructor() {
@@ -28,41 +31,52 @@ class Routeadmin {
         //CrudcreateAdmin
         router.post('/admin-create',controllerAdminInstance.createAdmin);
 
-        router.get('/admin/:id',controllerAdminInstance.verifyToken ,controllerAdminInstance.getAdminById);
-        router.put('/admin/:id', controllerAdminInstance.verifyToken,controllerAdminInstance.updateAdmin);
-        router.delete('/admin/:id',controllerAdminInstance.verifyToken ,controllerAdminInstance.deleteAdmin);
+        router.get('/admins/:id',controllerAdminInstance.verifyToken ,controllerAdminInstance.getAdminById);
+        router.put('/admins/:id', controllerAdminInstance.verifyToken,controllerAdminInstance.updateAdmin);
+        router.delete('/admins/:id',controllerAdminInstance.verifyToken ,controllerAdminInstance.deleteAdmin);
         router.get('/admins', controllerAdminInstance.verifyToken,controllerAdminInstance.getAllAdmins);
         //crud client
-        router.get('admin/clients', controllerAdminInstance.verifyToken,controllerclientInstance.getAllTouristes);
-        router.get('admin/client/:id', controllerAdminInstance.verifyToken,controllerclientInstance.getTouristeById);
-        router.put('admin/client/:id', controllerAdminInstance.verifyToken,controllerclientInstance.updateTouriste);
-        router.delete('admin/client/:id', controllerAdminInstance.verifyToken,controllerclientInstance.deleteTouriste);
+        router.get('/admins-clients', controllerAdminInstance.verifyToken,controllerclientInstance.getAllTouristes);
+        router.get('admins/client/:id', controllerAdminInstance.verifyToken,controllerclientInstance.getTouristeById);
+        router.put('admins/client/:id', controllerAdminInstance.verifyToken,controllerclientInstance.updateTouriste);
+        router.delete('/admins/client/:id', controllerAdminInstance.verifyToken,controllerclientInstance.deleteTouriste);
         //crud chauffeur
-        router.get('admin/chauffeurs', controllerAdminInstance.verifyToken,controllerchauffeurInstance.getAllChauffeurs);
+        router.get('/admins-chauffeurs', controllerAdminInstance.verifyToken,controllerchauffeurInstance.getAllChauffeurs);
         router.get('admin/chauffeur/:id', controllerAdminInstance.verifyToken,controllerchauffeurInstance.getChauffeurById);
         router.put('admin/chauffeur/:id', controllerAdminInstance.verifyToken,controllerchauffeurInstance.updateChauffeur);
-        router.delete('admin/chauffeur/:id', controllerAdminInstance.verifyToken,controllerchauffeurInstance.deleteChauffeur);
+        router.delete('/admins/chauffeur/:id', controllerAdminInstance.verifyToken,controllerchauffeurInstance.deleteChauffeur);
         //crud touriste
-        router.get('admin/touristes', controllerAdminInstance.verifyToken,controllerclientInstance.getAllTouristes);
-        router.get('admin/touriste/:id', controllerAdminInstance.verifyToken,controllerclientInstance.getTouristeById);
-        router.put('admin/touriste/:id', controllerAdminInstance.verifyToken,controllerclientInstance.updateTouriste);
-        router.delete('admin/touriste/:id', controllerAdminInstance.verifyToken,controllerclientInstance.deleteTouriste);
+        router.get('/admins/touristes', controllerAdminInstance.verifyToken,controllerclientInstance.getAllTouristes);
+        router.get('/admins/touriste/:id', controllerAdminInstance.verifyToken,controllerclientInstance.getTouristeById);
+        router.put('/admins/touriste/:id', controllerAdminInstance.verifyToken,controllerclientInstance.updateTouriste);
+        router.delete('/admins/touriste/:id', controllerAdminInstance.verifyToken,controllerclientInstance.deleteTouriste);
         //crud partenaire
-        router.get('admin/partenaires', controllerAdminInstance.verifyToken,ControllerpartenairInstance.getAllPartenaires);
-        router.get('admin/partenaire/:id', controllerAdminInstance.verifyToken,ControllerpartenairInstance.getPartenaireById);
-        router.put('admin/partenaire/:id', controllerAdminInstance.verifyToken,ControllerpartenairInstance.updatePartenaire);
-        router.delete('admin/partenaire/:id', controllerAdminInstance.verifyToken,ControllerpartenairInstance.deletePartenaire);
+        router.get('/admins-partenaires', controllerAdminInstance.verifyToken,ControllerpartenairInstance.getAllPartenaires);
+        router.get('/admins/partenaire/:id', controllerAdminInstance.verifyToken,ControllerpartenairInstance.getPartenaireById);
+        router.put('/admins/partenaire/:id', controllerAdminInstance.verifyToken,ControllerpartenairInstance.updatePartenaire);
+        router.delete('/admins/partenaire/:id', controllerAdminInstance.verifyToken,ControllerpartenairInstance.deletePartenaire);
         //crud villeArticle sans token
-        router.post('admin/villeArticle',controllerAdminInstance.verifyToken,controllerVilleArticleInstance.createVilleArticle);
+        router.post('/admins/villeArticle',controllerAdminInstance.verifyToken,controllerVilleArticleInstance.createVilleArticle);
         router.get('/admin/villeArticle/:id',controllerAdminInstance.verifyToken,controllerVilleArticleInstance.getVilleArticleById);
-        router.get('/admine/villeArticle/:id',controllerVilleArticleInstance.getVilleArticleById);
-        router.put('/admin/villeArticle/:id',controllerAdminInstance.verifyToken,controllerVilleArticleInstance.updateVilleArticle);
-        router.put('/admine/villeArticle',controllerVilleArticleInstance.updateVilleArticle);
+        router.get('/admins-villeArticle/:id',controllerVilleArticleInstance.getVilleArticleById);
+        router.put('/admine/villeArticle/:id',controllerAdminInstance.verifyToken,controllerVilleArticleInstance.updateVilleArticle);
+        router.put('/admine/villeArticle',controllerAdminInstance.verifyToken,controllerVilleArticleInstance.updateVilleArticle);
         router.delete('/admin/villeArticle/:id',controllerAdminInstance.verifyToken,controllerVilleArticleInstance.deleteVilleArticle);
         router.delete('/admine/villeArticle/:id',controllerVilleArticleInstance.deleteVilleArticle);
+        router.get('/admine-partenaire/pub-quiz/:id',controllerAdminInstance.verifyToken,ControllerpartenairInstance.pubetatchanger);
+        router.delete('/admine-partenaire/pub-quiz/:id',controllerAdminInstance.verifyToken,ControllerpartenairInstance.deletepubquiz);
+        //crud marge
+        // Routes des marges - Sans token pour test
+        router.get('/admins/marges/stats', controllerAdminInstance.verifyToken, ControllerMargeInstance.getMargeStats);
+        router.get('/admin-marge',controllerAdminInstance.verifyToken,ControllerMargeInstance.getAllMarges);
+        // Routes des marges avec token
+        router.get('/admins/marges/tour/:tourId', controllerAdminInstance.verifyToken, ControllerMargeInstance.getMargesByTourId);
+        router.post('/admins/marges', controllerAdminInstance.verifyToken, ControllerMargeInstance.createMarge);
+        
+        router.post('/admins-marges/global', controllerAdminInstance.verifyToken, ControllerMargeInstance.applyGlobalMarge);
 
         router.post('/admine/villeArticle',controllerVilleArticleInstance.createVilleArticle);
-        router.get('/admine/villeArticles',controllerVilleArticleInstance.getAllVilleArticles);
+        router.get('/admine/villeArticles',controllerAdminInstance.verifyToken,controllerVilleArticleInstance.getAllVilleArticles);
         //crud question
         router.post('/admin/question',ControllerquestionBankInstance.createQuestion);
         router.get('/question',ControllerquestionBankInstance.getAllQuestions);
@@ -78,10 +92,25 @@ class Routeadmin {
 
         router.post('/admin-verifyToken',controllerAdminInstance.verifyAdminToken);
 
-        router.get("/admin-statistics",controllerAdminInstance.verifyToken, controllerAdminInstance.getStatistics);
 
+        // Ajout des routes pour S3
+        router.post('/admine/villeArticle/s3', controllerAdminInstance.verifyToken,controllerVilleArticleInstance.createVilleArticleS3);
+        router.put('/admine/villeArticle/s3', controllerAdminInstance.verifyToken,controllerVilleArticleInstance.updateVilleArticleS3);
 
-        
+        //covering
+        router.get('/covering-admine/:id',controllerAdminInstance.verifyToken,ControllercovringadsInstance.getcoveringadsById)
+        router.put('/covering-admine/active/:id',controllerAdminInstance.verifyToken,ControllercovringadsInstance.ActiveCampaign)
+        router.delete('/covering-admine/:id',controllerAdminInstance.verifyToken,ControllercovringadsInstance.deleteCampaign)
+        router.get('/tour-admine/:id',controllerAdminInstance.verifyToken,ControllerpartenairInstance.tourbypartenaire)
+        router.delete('/tour-admine/:id',controllerAdminInstance.verifyToken,ControllerpartenairInstance.deleteTour)
+        //config publicite
+        router.post('/admin-config-publicite',controllerAdminInstance.verifyToken,ControllerConfigpubliciteInstance.creerConfiguration)
+        router.get('/admin-config-publicite',controllerAdminInstance.verifyToken,ControllerConfigpubliciteInstance.getConfiguration)
+        router.get('/touriste-number-by-matricule/:matricule',controllerAdminInstance.verifyToken,controllerAdminInstance.getTouristeNumberbyMatricule)
+        router.get('/touriste-quizz',controllerAdminInstance.verifyToken,controllerclientInstance.Clientquizz)
+        router.put('/touriste-quizz/:id',controllerAdminInstance.verifyToken,controllerclientInstance.sauvgarderMontatnt)
+        router.get('/config-publicite',ControllerConfigpubliciteInstance.getConfiguration)
+
     }
 }
 
