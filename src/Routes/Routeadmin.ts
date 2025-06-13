@@ -111,7 +111,7 @@ class Routeadmin {
         router.put('/touriste-quizz/:id',controllerAdminInstance.verifyToken,controllerclientInstance.sauvgarderMontatnt)
         router.get('/config-publicite',ControllerConfigpubliciteInstance.getConfiguration)
         router.get('/admin-marges/stats',controllerAdminInstance.verifyToken,ControllerMargeInstance.statMarge)
-
+        router.get("/admin-statistics",controllerAdminInstance.verifyToken, controllerAdminInstance.getStatistics);
     }
 }
 

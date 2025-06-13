@@ -577,7 +577,47 @@ async completerprofil(req: Request, res: Response): Promise<void> {
         }
     }
 
+    async getStatistics(req: Request, res: Response): Promise<void> {
+        try {
+            // Récupérer les statistiques à partir des collections MongoDB
+            const usersCount = await Touristes.countDocuments();
+            const newUsersCount = await Touristes.countDocuments({ createdAt: { $gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) } });
     
+            const driversCount = await Chauffeurs.countDocuments();
+            const newDriversCount = await Chauffeurs.countDocuments({ createdAt: { $gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) } });
+    
+            const partnersCount = await Partenaires.countDocuments();
+            const newPartnersCount = await Partenaires.countDocuments({ createdAt: { $gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) } });
+    
+            const toursCount = await Partenaires.aggregate([{ $unwind: "$tours" }, { $count: "count" }]);
+            const newToursCount = await Partenaires.aggregate([{ $unwind: "$tours" }, { $match: { "tours.jours.date": { $gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) } } }, { $count: "count" }]);
+    
+            const adsCount = await Partenaires.aggregate([{ $unwind: "$publicites" }, { $count: "count" }]);
+            const newAdsCount = await Partenaires.aggregate([{ $unwind: "$publicites" }, { $match: { "publicites.periode.debut": { $gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) } } }, { $count: "count" }]);
+    
+            const adsQuizCount = await Partenaires.aggregate([{ $unwind: "$pub_quiz" }, { $count: "count" }]);
+            const newAdsQuizCount = await Partenaires.aggregate([{ $unwind: "$pub_quiz" }, { $match: { "pub_quiz.periode.debut": { $gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) } } }, { $count: "count" }]);
+    
+            res.status(200).json({
+                users: usersCount,
+                newUsers: newUsersCount,
+                drivers: driversCount,
+                newDrivers: newDriversCount,
+                partners: partnersCount,
+                newPartners: newPartnersCount,
+                tours: toursCount[0]?.count || 0,
+                newTours: newToursCount[0]?.count || 0,
+                ads: adsCount[0]?.count || 0,
+                newAds: newAdsCount[0]?.count || 0,
+                adsQuiz: adsQuizCount[0]?.count || 0,
+                newAdsQuiz: newAdsQuizCount[0]?.count || 0,
+            });
+    
+        } catch (error) {
+            console.error("Erreur lors de la récupération des statistiques :", error);
+            res.status(500).json({ error: "Erreur lors de la récupération des statistiques" });
+        }
+    }
     
 
     

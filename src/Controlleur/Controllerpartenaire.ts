@@ -21,10 +21,10 @@ const stripe = new Stripe('sk_test_51RAG0WQ4fzXaDh6qqaSa4kETsLitTt3nAHAnaPoodCOr
 const s3 = new S3({
   accessKeyId: process.env.AWS_ACCESS_KEY_ID,
   secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
-  region: 'eu-north-1', // Corriger la région selon l'erreur
+  region: 'eu-north-1', 
   httpOptions: {
-    timeout: 120000, // 2 minutes timeout
-    connectTimeout: 60000 // 1 minute connect timeout
+    timeout: 120000, 
+    connectTimeout: 60000 
   },
   maxRetries: 3
 });
@@ -267,10 +267,11 @@ class ControllerPartenaire {
               res.status(400).json({ message: 'Erreur lors de l\'upload des fichiers: ' + err.message });
               return;
             }
+            console.log("salut");
             
             // Récupérer les fichiers uploadés
             const files = req.files as { [fieldname: string]: Express.Multer.File[] };
-            
+            console.log("files", files);
             // Vérifier s'il y a des fichiers
             if (!files || ((!files['banners'] || files['banners'].length === 0) && 
                           (!files['videos'] || files['videos'].length === 0))) {
@@ -285,6 +286,7 @@ class ControllerPartenaire {
             
             // Upload des bannières vers S3
             for (const file of bannerFiles) {
+              console.log("file", file);
               const fileName = `banners-${Date.now()}-${Math.round(Math.random() * 1E9)}${path.extname(file.originalname)}`;
               const destination = `compagne/${req.params.nom_societe}/banners/${fileName}`;
               const fileUrl = await uploadToS3(file, destination);
@@ -426,7 +428,7 @@ async pubcomplete(req: Request, res: Response): Promise<void> {
                 
                 if(pub.periode.fin < new Date() || (pub.clicks*configads[0].prixClic>pub.Budget_totale || pub.impressions*configads[0].prixImpression>pub.Budget_totale)){
                     pub.statu = 'Complete';
-                    console.log("pub complete"+pub);
+                    console.log("pub complete", pub);
                     
                 }
             }
@@ -452,7 +454,7 @@ async Pubsauvgarde(req: Request, res: Response): Promise<void> {
         
         const id = req.user;
         const data = req.body.data;
-        console.log("data"+data);
+        console.log("data", data);
         
         const pub = await Partenaires.findOne({'_id': id});
         pub?.pub_quiz.push(data);
