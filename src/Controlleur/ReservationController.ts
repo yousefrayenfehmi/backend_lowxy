@@ -7,7 +7,6 @@ import multer from 'multer';
 import path from 'path';
 import { Touristes } from "../models/Touriste";
 import dotenv from 'dotenv';
-import Fonction from "../fonction/Fonction";
 // Configuration Stripe
 const stripe = new Stripe('sk_test_51RAG0WQ4fzXaDh6qqaSa4kETsLitTt3nAHAnaPoodCOrgstRL0puvbFYG6KoruYmawEgL3o8NJ5DmywcApPS2NjH00FKdOaX9O');
 // Configuration de Multer
@@ -1041,65 +1040,14 @@ async createPaymentSession(req: AuthRequest, res: Response): Promise<void> {
     }
   }
 
-  async envoyerEmailTouriste(req: AuthRequest, res: Response): Promise<void> {
+  async envoyerEmailTouriste(req: Request, res: Response): Promise<void> {
     try {
-      // Vérification de la connexion à la BD
-      if (mongoose.connection.readyState !== 1) {
-        await dbConnection.getConnection().catch(error => {
-          res.status(500).json({ error: 'Erreur de connexion à la base de données' });
-          return;
-        });
-      }
-
-      const partenaire_id = req.user;
-      if (!partenaire_id || !Types.ObjectId.isValid(partenaire_id)) {
-        res.status(401).json({ 
-          success: false, 
-          message: 'Authentification requise pour envoyer un email' 
-        });
-        return;
-      }
-
-      const { destinataire, objet, message, signature, reservation_id } = req.body;
-
-      if (!destinataire || !objet || !message || !signature || !reservation_id) {
-        res.status(400).json({ 
-          success: false, 
-          message: 'Tous les champs sont requis (destinataire, objet, message, signature, reservation_id)' 
-        });
-        return;
-      }
-
-      // Vérifier que le partenaire existe
-      const partenaire = await Partenaires.findById(partenaire_id);
-      if (!partenaire) {
-        res.status(404).json({ 
-          success: false, 
-          message: 'Partenaire non trouvé' 
-        });
-        return;
-      }
-
-      // Envoyer l'email
-      await Fonction.sendMailPartenaireToTouriste({
-        destinataire,
-        objet,
-        message,
-        signature,
-        reservation_id
-      });
-
-      res.status(200).json({
-        success: true,
-        message: 'Email envoyé avec succès'
-      });
+      const emailData = req.body;
+      await (await import('../fonction/Fonction')).default.sendContactOrganisateurMail(emailData);
+      res.status(200).json({ success: true, message: 'Email envoyé avec succès' });
     } catch (error) {
-      console.error('Erreur lors de l\'envoi de l\'email:', error);
-      res.status(500).json({ 
-        success: false, 
-        message: 'Erreur lors de l\'envoi de l\'email',
-        error: error instanceof Error ? error.message : 'Erreur inconnue'
-      });
+      console.error('Erreur lors de l\'envoi de l\'email au touriste:', error);
+      res.status(500).json({ success: false, message: 'Erreur lors de l\'envoi de l\'email', error: error instanceof Error ? error.message : error });
     }
   }
 

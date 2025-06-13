@@ -1,4 +1,4 @@
-export class Emailtemplates {
+class EmailTemplates{
         private  VERIFICATION_EMAIL_TEMPLATE(code:string):string{
             return `<!DOCTYPE html>
                 <html lang="fr">
@@ -181,37 +181,6 @@ export class Emailtemplates {
             </html>`;
         }
 
-        private readonly PARTENAIRE_TO_TOURISTE_TEMPLATE = (data: { 
-            destinataire: string; 
-            objet: string; 
-            message: string;
-            signature: string;
-        }): string => {
-            return `
-              <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 5px;">
-                <div style="text-align: center; margin-bottom: 20px;">
-                  <img src="https://lowxy.com/assets/images/logo.png" alt="Lowxy Logo" style="max-width: 150px;">
-                </div>
-                <div style="background-color: #f8f9fa; padding: 20px; border-radius: 5px; margin-bottom: 20px;">
-                  <h2 style="color: #333; margin-bottom: 15px;">${data.objet}</h2>
-                  <div style="color: #666; line-height: 1.6; white-space: pre-line;">
-                    ${data.message}
-                  </div>
-                </div>
-                <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #e0e0e0;">
-                  <div style="color: #333; font-weight: bold; margin-bottom: 10px;">Contact de l'organisateur :</div>
-                  <div style="color: #666; line-height: 1.6; white-space: pre-line; background-color: #f8f9fa; padding: 15px; border-radius: 5px;">
-                    ${data.signature.replace('---', '')}
-                  </div>
-                </div>
-                <div style="text-align: center; color: #666; font-size: 12px; margin-top: 20px;">
-                  <p>Cet email a été envoyé depuis la plateforme Lowxy</p>
-                  <p>© ${new Date().getFullYear()} Lowxy. Tous droits réservés.</p>
-                </div>
-              </div>
-            `;
-        };
-
         getverifauEmail(code: string): string {
             return this.VERIFICATION_EMAIL_TEMPLATE(code);
         }
@@ -227,7 +196,40 @@ export class Emailtemplates {
         getAdminCoveringConfirmation(details: {nom_partenaire: string, modele: string, type: string, nombre_taxi: number, nombre_jour: number, prix: number}, adminURL: string): string {
             return this.ADMIN_COVERING_CONFIRMATION_TEMPLATE(details, adminURL);
         }
-        static getPartenaireToTouristeTemplate(data: { destinataire: string; objet: string; message: string; signature: string }): string {
-            return new Emailtemplates().PARTENAIRE_TO_TOURISTE_TEMPLATE(data);
+        getContactOrganisateurTemplate(data: { message: string, entreprise: string, entrepriseEmail: string, entrepriseTelephone: string, reservation_id: string }): string {
+            return `<!DOCTYPE html>
+            <html lang="fr">
+            <head>
+                <meta charset="UTF-8">
+                <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                <title>Contact de l'organisateur</title>
+            </head>
+            <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+                <div style="background: linear-gradient(to right, #1976D2, #2196F3); padding: 20px; text-align: center;">
+                    <h1 style="color: white; margin: 0;">Message de l'organisateur</h1>
+                </div>
+                <div style="background-color: #f9f9f9; padding: 20px; border-radius: 0 0 5px 5px; box-shadow: 0 2px 5px rgba(0,0,0,0.1);">
+                    <p>Bonjour,</p>
+                    <p>Vous avez reçu un message de la part de l'organisateur :</p>
+                    <div style="background-color: #fff; border: 1px solid #ddd; border-radius: 5px; padding: 15px; margin: 20px 0;">
+                        <strong>Message :</strong>
+                        <p>${data.message}</p>
+                    </div>
+                    <h3>Informations de l'organisateur :</h3>
+                    <ul>
+                        <li><strong>Entreprise :</strong> ${data.entreprise}</li>
+                        <li><strong>Email :</strong> ${data.entrepriseEmail}</li>
+                        <li><strong>Téléphone :</strong> ${data.entrepriseTelephone}</li>
+                    </ul>
+                    <p><strong>ID de réservation :</strong> ${data.reservation_id}</p>
+                    <p>Cordialement,<br>L'équipe LOWXY</p>
+                </div>
+                <div style="text-align: center; margin-top: 20px; color: #888; font-size: 0.8em;">
+                    <p>Ceci est un message automatique, merci de ne pas y répondre.</p>
+                </div>
+            </body>
+            </html>`;
         }
 }
+
+export const Emailtemplates=new EmailTemplates()
