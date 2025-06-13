@@ -7,6 +7,7 @@ import Routepartenaire from './Routes/Routepartenaire';
 import Routesstrategy from './Routes/Routesgmailstrategy';
 import RouteTour from './Routes/tourRoute'; // adjust the path as needed
 import RouteReservation from './Routes/RouteReservation ';
+import RouteGuideIA from './Routes/RouteGuideIA';
 
 import passport from 'passport';
 import session from 'express-session';
@@ -89,6 +90,9 @@ app.use(Routepartenaire.getRouter());
 app.use(RouteTour.getRouter());
 app.use(Routepreferences.getRouter());
 app.use(RouteReservation.getRouter());
+app.use('/guide-ia',RouteGuideIA.getRouter());
+
+
 
 // Ajout du router de débogage
 app.use('/debug', RouteDebugInstance.getRouter());

@@ -128,9 +128,34 @@ const touristeSchema = new Schema<ITouriste>({
       type: String,
       trim: true
     }],
-    activites: [{
-      type: String,
-    }],
+    guide_ia: {
+      narration: {
+        type: String,
+        enum: ['Sérieux', 'Humoristique', 'Familial', 'Poétique'],
+        default: 'Sérieux'
+      },
+      voix: {
+        genre: {
+          type: String,
+          enum: ['Femme', 'Homme', 'Neutre'],
+          default: 'Neutre'
+        },
+        age: {
+          type: String,
+          enum: ['Jeune', 'Adulte', 'Âgé'],
+          default: 'Adulte'
+        },
+        style: {
+          type: String,
+          enum: ['Neutre', 'Charismatique', 'Amusante'],
+          default: 'Neutre'
+        }
+      },
+      references_culturelles: {
+        type: Boolean,
+        default: true
+      }
+    }
   },
   pack_ia: {
     actif: {
@@ -139,8 +164,85 @@ const touristeSchema = new Schema<ITouriste>({
     },
     mode: {
       type: String,
-      enum: ['Live', 'Itinéraire Personnalisé']
+      enum: ['Live', 'Itinéraire Personnalisé'],
+      default: 'Live'
     },
+    derniere_utilisation: {
+      type: Date,
+      default: null
+    },
+    historique_trajets: [{
+      depart: {
+        adresse: String,
+        latitude: Number,
+        longitude: Number
+      },
+      arrivee: {
+        adresse: String,
+        latitude: Number,
+        longitude: Number
+      },
+      date: {
+        type: Date,
+        default: Date.now
+      },
+      duree: Number, // en secondes
+      distance: Number, // en mètres
+      points_interet_visites: [{
+        nom: String,
+        type: String,
+        description: String,
+        latitude: Number,
+        longitude: Number
+      }]
+    }],
+    sessions: [{
+      date_debut: {
+        type: Date,
+        default: Date.now
+      },
+      date_fin: Date,
+      duree: Number,
+      mode: {
+        type: String,
+        enum: ['Live', 'Itinéraire Personnalisé'],
+        required: true
+      },
+      montant: {
+        type: Number,
+        required: true
+      },
+      statut_paiement: {
+        type: String,
+        enum: ['En attente', 'Complété', 'Échoué', 'Remboursé'],
+        default: 'En attente'
+      },
+      transaction_id: String,
+      guide_responses: [{
+        ville: String,
+        position: {
+          latitude: Number,
+          longitude: Number
+        },
+        interest: String,
+        response: {
+          text: String,
+          pois: [{
+            name: String,
+            type: String,
+            description: String,
+            location: {
+              latitude: Number,
+              longitude: Number
+            }
+          }]
+        },
+        timestamp: {
+          type: Date,
+          default: Date.now
+        }
+      }]
+    }]
   },
   // Nouvelle partie pour les quiz
   historique_quiz: [resultatQuizSchema]

@@ -30,6 +30,9 @@ class RouteReservation {
     router.get('/partenaire-reservation-by-tour/:tour_id', ControllerpartenairInstance.verifyToken, reservationControllerInstance.getReservationsForTour);
     router.get('/partenaire-mes-reservations', ControllerpartenairInstance.verifyToken, reservationControllerInstance.getMesReservationsPartenaire);
   
+    router.post('/reservations/complete-reservation', controllerclientInstance.verifyToken, reservationControllerInstance.completeReservation);
+    router.post('/reservations/annuler-reservation-partenaire', ControllerpartenairInstance.verifyToken, reservationControllerInstance.annulerReservationPartenaire);
+    router.post('/reservations/annuler-reservation-touriste', controllerclientInstance.verifyToken, reservationControllerInstance.annulerReservationTouriste);
   }
 }
 
