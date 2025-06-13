@@ -2,7 +2,7 @@ import  Jwt  from "jsonwebtoken";
 import { Response } from "express";
 import { ObjectId, Types } from "mongoose";
 import { Email } from "./Mailconfig";
-import { Emailtemplates } from "./EmailTemplates"; 
+import { Emailtemplates } from './EmailTemplates';
 import dotenv from 'dotenv';
 import path from 'path';
 class Fonction {
@@ -174,8 +174,52 @@ class Fonction {
                     }
                 }
                 
+                static async sendMailPartenaireToTouriste(data: { 
+                    destinataire: string; 
+                    objet: string; 
+                    message: string;
+                    signature: string;
+                    reservation_id: string;
+                }): Promise<void> {
+                    try {
+                        // Validation des données
+                        if (!data.destinataire || !data.objet || !data.message || !data.signature || !data.reservation_id) {
+                            throw new Error('Tous les champs sont requis (destinataire, objet, message, signature, reservation_id)');
+                        }
 
-    
+                        // Validation de l'adresse email
+                        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+                        if (!emailRegex.test(data.destinataire)) {
+                            throw new Error('Adresse email invalide');
+                        }
+
+                        // Validation de l'ID de réservation
+                        if (!Types.ObjectId.isValid(data.reservation_id)) {
+                            throw new Error('ID de réservation invalide');
+                        }
+
+                        const htmlContent = Emailtemplates.getPartenaireToTouristeTemplate({
+                            destinataire: data.destinataire,
+                            objet: data.objet,
+                            message: data.message,
+                            signature: data.signature
+                        });
+                        
+                        const mailOptions = {
+                            from: process.env.EMAIL_USER,
+                            to: data.destinataire,
+                            subject: data.objet,
+                            html: htmlContent
+                        };
+
+                        console.log('Options d\'envoi:', mailOptions); // Pour le débogage
+
+                        await Email.getTransporter().sendMail(mailOptions);
+                    } catch (error) {
+                        console.error('Erreur lors de l\'envoi de l\'email partenaire vers touriste:', error);
+                        throw error;
+                    }
+                }
 }
 
 export default Fonction;

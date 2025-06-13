@@ -33,6 +33,9 @@ class RouteReservation {
     router.post('/reservations/complete-reservation', controllerclientInstance.verifyToken, reservationControllerInstance.completeReservation);
     router.post('/reservations/annuler-reservation-partenaire', ControllerpartenairInstance.verifyToken, reservationControllerInstance.annulerReservationPartenaire);
     router.post('/reservations/annuler-reservation-touriste', controllerclientInstance.verifyToken, reservationControllerInstance.annulerReservationTouriste);
+
+    // Route pour l'envoi d'email partenaire vers touriste
+    router.post('/reservations/envoyer-email-touriste', ControllerpartenairInstance.verifyToken, reservationControllerInstance.envoyerEmailTouriste);
   }
 }
 
