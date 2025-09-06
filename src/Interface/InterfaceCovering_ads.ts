@@ -17,4 +17,6 @@ export interface ICoveringAd extends Document {
   };
   status:  'Active' | 'Completed' |  'Pending';
   assigned_taxis: Types.ObjectId[];
+  createdAt?: Date;
+  updatedAt?: Date;
 }

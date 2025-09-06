@@ -1,78 +1,57 @@
 import mongoose, { Schema, Document } from 'mongoose';
-import { IVilleArticle, ILieuTouristique, IGastronomie, IEvenement, IPhotos, IHotel, IRestaurant } from '../Interface/InterfaceVilleAticle.'; 
+import { IPointInteret } from '../Interface/InterfaceVilleAticle.';
 
+export interface IPointInteretDocument extends IPointInteret, Document {}
 
-
-const EvenementSchema = new Schema<IEvenement>({
-    nom: { type: String, required: false },
-    date: { type: String, required: false },
-    description: { type: String,required:false }
-});
-
-const PhotosSchema = new Schema<IPhotos>({
-    photo_principale: { type: String,required:false },
-    galerie_photos: [{ type: String,required:false }]
-});
-const LieuTouristiqueSchema = new Schema<ILieuTouristique>({
-    nom: { type: String, required: false },
-    description: { type: String },
-    adresse: { type: String },
-    photo: { type: PhotosSchema }
-});
-
-const GastronomieSchema = new Schema<IGastronomie>({
-    plat: { type: String, required: false },
-    description: { type: String,required:false },
-    photo:{ type: PhotosSchema }
-});
-const HotelSchema = new Schema<IHotel>({
-        nom: { type: String, required: false },
-    adresse: { type: String, required: false },
-    categorie: { type: String,required:false },
-    contact: { type: String,required:false },
-    photos: { type: PhotosSchema }
-});
-
-const RestaurantSchema = new Schema<IRestaurant>({
-    nom: { type: String,required:false },
-    adresse: { type: String,required:false },
-    specialite: { type: String,required:false },
-    contact: { type: String,required:false },
-    photos: { type: PhotosSchema }
-});
-
-// Schéma principal
-const VilleArticleSchema = new Schema<IVilleArticle>({
+const PointInteretSchema: Schema<IPointInteretDocument> = new Schema({
+    nom_lieu: {
+        type: String,
+        required: true,
+        trim: true
+    },
+    categorie: {
+        type: String,
+        required: true,
+        enum: ['all', 'restaurants', 'hotels', 'concerts', 'spectacles']
+    },
+    description: {
+        type: String,
+        required: true,
+        trim: true
+    },
+    url_image: {
+        type: String,
+        required: true,
+        trim: true
+    },
+    texte_alternatif: {
+        type: String,
+        required: true,
+        trim: true
+    },
+    rating: {
+        type: Number,
+        required: true,
+        min: 1,
+        max: 5
+    },
     ville: {
-        nom: { type: String, required: true },
-        region: { type: String, required: true },
-        pays: { type: String, required: true }
+        type: String,
+        required: true,
+        trim: true
     },
-    contenu: {
-        titre: { type: String, required: true },
-        description: { type: String,required:true },
-        histoire: { type: String,required:true },
-        culture: { type: String,required:true },
-        lieux_touristiques: [LieuTouristiqueSchema],
-        gastronomie: [GastronomieSchema],
-        evenements: [EvenementSchema]
+    pays: {
+        type: String,
+        required: true,
+        trim: true
     },
-    informations_pratiques: {
-        hotels_recommandes: [HotelSchema],
-        restaurants_recommandes: [RestaurantSchema]
-    },
-    medias: {
-        photos: [{ type: String }],
-        videos: [{ type: String }]
-    },
-    crèepar: { type: String },
-    meta: {
-        nombre_vues: { type: Number, default: 0 },
-        derniere_mise_a_jour: { type: Date, default: Date.now }
+    adresse: {
+        type: String,
+        required: false,
+        trim: true
     }
 }, {
-    timestamps: true
+    timestamps: true // Ajoute automatiquement createdAt et updatedAt
 });
 
-// Création du modèle
-export const VilleArticle = mongoose.model<IVilleArticle>('VilleArticle', VilleArticleSchema);
+export const PointInteret = mongoose.model<IPointInteretDocument>('PointInteret', PointInteretSchema);

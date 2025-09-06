@@ -29,8 +29,10 @@ class controllerclient {
                 return;
             }
         }
+
     
         const authHeader = req.headers.authorization;
+        console.log(authHeader);
         const token = authHeader && authHeader.split(' ')[1];
     
         if (!token) {
@@ -251,7 +253,7 @@ async sauvgarderMontatnt(req: Request, res: Response): Promise<void>{
         }
 
         try {
-            const { email, motdepasse } = req.body;
+            const { email, password } = req.body;
             const touriste = await Touristes.findOne({ 'info.email': email, 'securites.isverified': true });
 
             if (!touriste || !touriste.info || !touriste.info.motdepasse) {
@@ -259,7 +261,7 @@ async sauvgarderMontatnt(req: Request, res: Response): Promise<void>{
                 return;
             }
 
-            const match = await bcrypt.compare(motdepasse, touriste.info.motdepasse);
+            const match = await bcrypt.compare(password, touriste.info.motdepasse);
             if (!match) {
                 res.status(400).json({ error: 'Mot de passe incorrect' });
                 return;
@@ -308,7 +310,7 @@ async sauvgarderMontatnt(req: Request, res: Response): Promise<void>{
             touriste.resetPasswordTokenExpire = resetTokenExpiresAt;
 
             await touriste.save();
-            Fonction.sendmail(email, 'password', process.env.front_end+"/changepassword/" + resetToken);
+            Fonction.sendmail(email, 'password', process.env.front_end+"/Auth/mot_passe_oblier/reset/?token="+resetToken+"&type=personnel");
 
             res.status(200).json({
                 success: true,
@@ -332,7 +334,9 @@ async sauvgarderMontatnt(req: Request, res: Response): Promise<void>{
 
         try {
             const { token } = req.params;
-            const { motdepasse } = req.body;
+            const { newPassword } = req.body;
+console.log(token);
+console.log(newPassword);
 
             const touriste = await Touristes.findOne({
                 resetPasswordToken: token,
@@ -344,7 +348,7 @@ async sauvgarderMontatnt(req: Request, res: Response): Promise<void>{
                 return;
             }
 
-            const hashedPassword = await bcrypt.hash(motdepasse, 10);
+            const hashedPassword = await bcrypt.hash(newPassword, 10);
             touriste.info.motdepasse = hashedPassword;
             touriste.resetPasswordToken = undefined;
             touriste.resetPasswordTokenExpire = undefined as any;
@@ -353,6 +357,7 @@ async sauvgarderMontatnt(req: Request, res: Response): Promise<void>{
 
             res.status(200).json({ success: true, message: "Password reset successful" });
         } catch (error) {
+            console.log(error);
             res.status(500).json({ error: 'Erreur lors de la réinitialisation du mot de passe' });
         }
     }
@@ -442,7 +447,7 @@ async sauvgarderMontatnt(req: Request, res: Response): Promise<void>{
 
 
 }
-async completerprofil(req: Request, res: Response): Promise<void> {
+async completerl(req: Request, res: Response): Promise<void> {
         if (mongoose.connection.readyState !== 1) {
             await dbConnection.getConnection().catch(error => {
                 res.status(500).json({ error: 'Erreur de connexion à la base de données' });
@@ -457,6 +462,7 @@ async completerprofil(req: Request, res: Response): Promise<void> {
             const id = req.user;
             let touriste = await Touristes.findById(id);
             
+            console.log(req.body);
             
     
             if (!touriste) {
@@ -482,7 +488,7 @@ async completerprofil(req: Request, res: Response): Promise<void> {
                 },
                 
                 // Champs additionnels
-                'info.Rib': req.body.info?.Rib ?? touriste.info.Rib,
+                'info.rib': req.body.info?.rib ?? touriste.info.rib,
                 // Ajoutez d'autres champs ici
                 'info.matricule_taxi': req.body.info?.matricule_taxi ?? touriste.info.matricule_taxi,
                 'preferences.langue': req.body.preferences?.langue ?? touriste.preferences.langue,
@@ -663,16 +669,21 @@ async authavecfacebook(req: Request, res: Response): Promise<void> {
         }
 
         try {
+            console.log(req.body);
             const id = req.user;
-            const { code } = req.body;
-
+            const  {code}  = req.body;
+            
+            
             const tourist = await Touristes.findOne({
                 '_id': id,
                 'securites.code': code,
                 'securites.date': { $gt: new Date(Date.now() - 15 * 60 * 1000) }
+                
             });
 
             if (!tourist) {
+                console.log('Le code est invalide ou a expiré');
+                
                 res.status(400).json({
                     success: false,
                     message: 'Le code est invalide ou a expiré'
@@ -691,6 +702,7 @@ async authavecfacebook(req: Request, res: Response): Promise<void> {
                 message: 'Email vérifié avec succès'
             });
         } catch (error) {
+            console.log(error);
             res.status(500).json({
                 success: false,
                 message: 'Erreur lors de la vérification'

@@ -317,7 +317,7 @@ class GuideIAController {
             // Enrichir les POIs avec les données de la collection enriched_pois
             const enrichedPois = await Promise.all(
               response.response.pois.map(async (poiId: string) => {
-                const enrichedPoi = await mongoose.connection.db
+                const enrichedPoi = await mongoose.connection.db  
                   .collection('enriched_pois')
                   .findOne({ _id: new mongoose.Types.ObjectId(poiId) }, { projection: { _id: 0 } });
                 return enrichedPoi || { id: poiId };

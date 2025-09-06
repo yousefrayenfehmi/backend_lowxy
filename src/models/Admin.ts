@@ -18,20 +18,16 @@ const AdminSchema = new Schema({
         type: String,
         required: true
     },
-    securites: {
-        code: String,
-        date: Date,
-        isverified: {
-            type: Boolean,
-            default: false
-        }
-    },
-    resetPasswordToken: String,
-    resetPasswordTokenExpire: Date,
-    isAdmin:{
-        type: Boolean,
-        default: false
-    },
+   isAdmin:{
+    type: Boolean,
+    default: false
+   },
+   type: {
+    type: String,
+    enum: ['admin', 'superadmin'],
+    default: 'admin'
+   }
+    
 }, {
     timestamps: true
 });

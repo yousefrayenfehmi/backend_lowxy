@@ -8,7 +8,7 @@ import path from 'path';
 import { Touristes } from "../models/Touriste";
 import dotenv from 'dotenv';
 // Configuration Stripe
-const stripe = new Stripe('sk_test_51RAG0WQ4fzXaDh6qqaSa4kETsLitTt3nAHAnaPoodCOrgstRL0puvbFYG6KoruYmawEgL3o8NJ5DmywcApPS2NjH00FKdOaX9O');
+const stripe = new Stripe('sk_test_51S3lkdQyRlRGZEmDNI1UnQ94xHMubhAmKIDEu2g7iapu5PuTSRYRstBEZ1ZHBLmoNE6f7fm0JlF7GbbWYWfTHPB9007zXrJlsS');
 // Configuration de Multer
 const storage = multer.diskStorage({
   destination: function(req, file, cb) {
@@ -207,6 +207,113 @@ async createPaymentSession(req: AuthRequest, res: Response): Promise<void> {
     }
   });
 }
+
+  // Créer une session de paiement Stripe pour une réservation existante via son ID
+  async createReservationCheckoutSessionById(req: Request, res: Response): Promise<void> {
+    try {
+      // Vérification de la connexion à la BD
+      if (mongoose.connection.readyState !== 1) {
+        await dbConnection.getConnection().catch(error => {
+          res.status(500).json({ error: 'Erreur de connexion à la base de données' });
+          return;
+        });
+      }
+
+      const { reservationId } = req.params as { reservationId: string };
+      const client_id = (req as AuthRequest).user;
+
+      if (!client_id || !Types.ObjectId.isValid(client_id)) {
+        res.status(401).json({ success: false, message: 'Authentification requise' });
+        return;
+      }
+
+      if (!reservationId || !Types.ObjectId.isValid(reservationId)) {
+        res.status(400).json({ success: false, message: 'ID de réservation invalide ou manquant' });
+        return;
+      }
+
+      // Rechercher le partenaire contenant cette réservation
+      const partenaire = await Partenaires.findOne({ 'tours.jours.reservations._id': new Types.ObjectId(reservationId) });
+      if (!partenaire) {
+        res.status(404).json({ success: false, message: 'Réservation non trouvée' });
+        return;
+      }
+
+      let foundTourIndex = -1;
+      let foundJourIndex = -1;
+      let foundReservationIndex = -1;
+
+      for (let tIndex = 0; tIndex < partenaire.tours.length; tIndex++) {
+        const t = partenaire.tours[tIndex];
+        for (let jIndex = 0; jIndex < t.jours.length; jIndex++) {
+          const j = t.jours[jIndex];
+          const rIndex = (j.reservations || []).findIndex(r => r._id && r._id.toString() === reservationId);
+          if (rIndex !== -1) {
+            foundTourIndex = tIndex;
+            foundJourIndex = jIndex;
+            foundReservationIndex = rIndex;
+            break;
+          }
+        }
+        if (foundReservationIndex !== -1) break;
+      }
+
+      if (foundReservationIndex === -1) {
+        res.status(404).json({ success: false, message: 'Réservation non trouvée' });
+        return;
+      }
+
+      const reservation = partenaire.tours[foundTourIndex].jours[foundJourIndex].reservations[foundReservationIndex];
+
+      // Vérifier que la réservation appartient bien au client authentifié
+      if (reservation.client_id.toString() !== client_id) {
+        res.status(403).json({ success: false, message: 'Vous n\'êtes pas autorisé à payer cette réservation' });
+        return;
+      }
+
+      // Vérifier le statut
+      if (reservation.statut !== 'en attente de paiement') {
+        res.status(400).json({ success: false, message: 'Cette réservation n\'est pas en attente de paiement' });
+        return;
+      }
+
+      const tour = partenaire.tours[foundTourIndex];
+      const jour = partenaire.tours[foundTourIndex].jours[foundJourIndex];
+
+      // Création de la session de paiement Stripe
+      const session = await stripe.checkout.sessions.create({
+        payment_method_types: ['card'],
+        line_items: [
+          {
+            price_data: {
+              currency: 'eur',
+              product_data: {
+                name: `Réservation pour ${tour.nom}`,
+                description: `${reservation.participants.adultes} adulte(s) et ${reservation.participants.enfants} enfant(s) pour le ${new Date(reservation.date).toLocaleDateString('fr-FR')}`,
+              },
+              unit_amount: Math.round(reservation.prix_total * 100),
+            },
+            quantity: 1,
+          },
+        ],
+        mode: 'payment',
+        success_url: `${process.env.front_end}/paiment_sucesses/${reservation._id}?data=${encodeURIComponent(JSON.stringify({
+          reservation_id: reservation._id?.toString(),
+          tour_id: tour._id?.toString(),
+          jour_id: jour._id?.toString(),
+          client_id: client_id
+        }))}&type=reservation`,
+        cancel_url: `${process.env.front_end}/paiment_echouee/${reservation._id}?data=${encodeURIComponent(JSON.stringify({
+          tour_id: tour._id?.toString()
+        }))}&type=reservation`,
+      });
+
+      res.status(200).json({ success: true, id: session.id, reservation_id: reservationId });
+    } catch (error) {
+      console.error('Erreur lors de la création de la session de paiement:', error);
+      res.status(500).json({ success: false, message: 'Erreur lors de la création de la session de paiement' });
+    }
+  }
 
   // Confirmer le paiement d'une réservation
   async confirmPayment(req: Request, res: Response): Promise<void> {
@@ -616,11 +723,13 @@ async createPaymentSession(req: AuthRequest, res: Response): Promise<void> {
       const partenaires = await Partenaires.find({
         'tours.jours.reservations.client_id': new Types.ObjectId(client_id)
       });
+      console.log(partenaires)
 
       // Collecter toutes les réservations du client
       const allReservations = [];
       
       for (const partenaire of partenaires) {
+        console.log(partenaire)
         for (const tour of partenaire.tours) {
           for (const jour of tour.jours) {
             // Filtrer uniquement les réservations du client
@@ -635,7 +744,7 @@ async createPaymentSession(req: AuthRequest, res: Response): Promise<void> {
                   ...reservation.toObject(),
                   partenaire_info: {
                     partenaire_id: partenaire._id,
-                    nom_entreprise: partenaire.inforamtion.inforegester.nom_entreprise
+                    nom_entreprise: partenaire.information.inforegester.nom_entreprise
                   },
                   tour_info: {
                     tour_id: tour._id,
@@ -977,11 +1086,10 @@ async createPaymentSession(req: AuthRequest, res: Response): Promise<void> {
       }
 
       const { reservationId, tourId, jourId } = req.body;
+      console.log(req.body);
+      
       const client_id = req.user;
-      console.log("--------------------------------");
-      console.log(client_id);
-      console.log(reservationId, tourId, jourId);
-      console.log("--------------------------------");
+      
 
       if (!client_id || !Types.ObjectId.isValid(client_id)) {
         res.status(401).json({ success: false, message: 'Authentification requise' });
@@ -989,6 +1097,8 @@ async createPaymentSession(req: AuthRequest, res: Response): Promise<void> {
       }
 
       if (!reservationId || !Types.ObjectId.isValid(reservationId) || !tourId || !Types.ObjectId.isValid(tourId) || !jourId || !Types.ObjectId.isValid(jourId)) {
+        console.log();
+        
         res.status(400).json({ success: false, message: 'Paramètres invalides ou manquants' });
         return;
       }

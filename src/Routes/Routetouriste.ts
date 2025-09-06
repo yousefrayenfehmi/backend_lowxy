@@ -1,7 +1,6 @@
 import express, { Router, Request, Response, NextFunction }  from "express";
 import { controllerclientInstance } from "../Controlleur/Controllerclient";
 import passport, { Passport } from "passport";
-import { controllerVilleArticleInstance } from "../Controlleur/Controllervillearticle";
 import Fonction from "../fonction/Fonction";
 import { VerifierTokenInstance } from "../midlleware/VerifierToken";
 import { controllerchauffeurInstance } from "../Controlleur/Controllerchauffeur";
@@ -33,12 +32,11 @@ class Routetouriste {
         router.put('/touriste/:id', controllerclientInstance.verifyToken, controllerclientInstance.updateTouriste);
         router.delete('/touriste/:id', controllerclientInstance.verifyToken, controllerclientInstance.deleteTouriste);
         router.get('/touristes', controllerclientInstance.verifyToken, controllerclientInstance.getAllTouristes);
-        router.get('/touristecherche/:ville',controllerVilleArticleInstance.getVilleArticleByLocalitation)
         //google authentification
         router.post('/verifyToken',controllerclientInstance.verifyToken);
         //get User by token 
         router.get('/touriste-by-token', controllerclientInstance.getTouristeByToken);
-        router.post('/completertouriste',controllerclientInstance.verifyToken,controllerclientInstance.completerprofil);
+        router.post('/completertouriste',controllerclientInstance.verifyToken,controllerclientInstance.completerl);
         router.post('/touriste/uploadfacture', controllerclientInstance.verifyToken, controllerclientInstance.uploadfacture);
         router.post('/touriste/verifierchauffeur',controllerclientInstance.verifyToken,controllerchauffeurInstance.verifierchauffeur);
         //get User by token

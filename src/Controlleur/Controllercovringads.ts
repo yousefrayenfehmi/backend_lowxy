@@ -93,7 +93,8 @@ export class Controllercovringads {
     }
     try {
       const id = req.user;
-      const coveringAd = req.body.data;
+      const coveringAd = req.body;
+      console.log('coveringAd:'+coveringAd);
       let type;
       if(await Partenaires.findById(id)){
         type='partenaire';
@@ -119,11 +120,11 @@ export class Controllercovringads {
           id: id as Types.ObjectId
         },
         details: {
-          modele_voiture: coveringAd.modele_voiture,
+          modele_voiture: coveringAd.type_voiture,
           type_covering: coveringAd.type_covering,
-          image: coveringAd.image,
+          image: coveringAd.lien_photo,
           nombre_taxi: parseInt(coveringAd.nombre_taxi),
-          nombre_jour: parseInt(coveringAd.nombre_jour),
+          nombre_jour: parseInt(coveringAd.nombre_jours),
           prix: parseFloat(coveringAd.prix)
         },
         status:  'Pending',
@@ -146,7 +147,7 @@ export class Controllercovringads {
         Fonction.sendmailAdminCovering(
           admin.email,
           {
-            nom_partenaire: partenaire?.inforamtion.inforegester.nom_entreprise || touriste?.info.nom_complet || "Partenaire inconnu",
+            nom_partenaire: partenaire?.information.inforegester.nom_entreprise || touriste?.info.nom_complet || "Partenaire inconnu",
             modele: coveringAds.details.modele_voiture,
             type: coveringAds.details.type_covering,
             nombre_taxi: coveringAds.details.nombre_taxi,
@@ -242,7 +243,7 @@ async getAvailableCampaigns(req: Request, res: Response): Promise<void> {
       const chauffeurId = req.user;
       const { campaignId } = req.params;
       
-      
+      console.log("campaignId:"+campaignId);
       
       const chauffeurDetails = await Chauffeurs.findById(chauffeurId);
       if (!chauffeurDetails) {
@@ -285,6 +286,8 @@ async getAvailableCampaigns(req: Request, res: Response): Promise<void> {
       }
       const verifcompagne=await CoveringAd.find({assigned_taxis:{$in:[chauffeurId]}});
       if (verifcompagne.length>0) {
+        console.log("verifcompagne:"+verifcompagne);
+        
         res.status(400).json({ 
           success: false, 
           message: 'Ce taxi participe déjà à une campagne active' 
@@ -293,7 +296,9 @@ async getAvailableCampaigns(req: Request, res: Response): Promise<void> {
       }
       
       // Vérifier si le modèle du taxi correspond
-      if (chauffeurDetails.vehicule.modele !== campaign.details.modele_voiture) {
+      if (chauffeurDetails.vehicule.modele?.toLowerCase() !== campaign.details.modele_voiture.toLowerCase()) {
+        console.log("chauffeurDetails.vehicule.modele:"+chauffeurDetails.vehicule.modele);
+        console.log("campaign.details.modele_voiture:"+campaign.details.modele_voiture);
         res.status(400).json({ 
           success: false, 
           message: 'Le modèle de votre taxi ne correspond pas à celui requis pour cette campagne' 
@@ -317,6 +322,7 @@ async getAvailableCampaigns(req: Request, res: Response): Promise<void> {
       if (campaign.assigned_taxis.length >= campaign.details.nombre_taxi) {
         campaign.status = 'Completed';
       }
+      console.log("campaign.status:"+campaign);
       
       await campaign.save();
       
@@ -365,7 +371,7 @@ async getAvailableCampaigns(req: Request, res: Response): Promise<void> {
       const coveringads = await CoveringAd.find({'creator.id':id});
       const partenaire=await Partenaires.findById(id);
       
-      res.status(200).json({covering:coveringads,nom_societe:partenaire?.inforamtion.inforegester.nom_entreprise});
+      res.status(200).json({covering:coveringads,nom_societe:partenaire?.information.inforegester.nom_entreprise});
     } catch (error) {
       console.error('Erreur lors de la récupération des campagnes:', error);
       res.status(500).json({

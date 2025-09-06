@@ -32,7 +32,7 @@ class Routechauffeur {
         router.get('/chauffeur/:id', controllerchauffeurInstance.verifyToken,controllerchauffeurInstance.getChauffeurById);
         router.put('/chauffeur/:id', controllerchauffeurInstance.verifyToken,controllerchauffeurInstance.updateChauffeur);
         router.delete('/chauffeur/:id', controllerchauffeurInstance.verifyToken,controllerchauffeurInstance.deleteChauffeur);
-        router.post('/completerchauffer/:id',controllerchauffeurInstance.completerprofil);
+        router.post('/completerchauffeur',controllerchauffeurInstance.verifyToken,controllerchauffeurInstance.completerprofil);
 
          //get User by token 
          router.get('/chauffeur-by-token', controllerchauffeurInstance.getChauffeurByToken);

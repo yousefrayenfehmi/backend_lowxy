@@ -19,6 +19,7 @@ interface IChauffeurs extends Document {
         Rib?: string;
     };
     vehicule: {
+        marque?: string;
         matricule?: string;
         modele?: string;
         places?: number;

@@ -15,6 +15,7 @@ import { S3 } from 'aws-sdk';
 
 import dotenv from 'dotenv';
 import ConfigPublicite from "../models/Configpublicite";
+import { log } from "console";
 
 const stripe = new Stripe('sk_test_51RAG0WQ4fzXaDh6qqaSa4kETsLitTt3nAHAnaPoodCOrgstRL0puvbFYG6KoruYmawEgL3o8NJ5DmywcApPS2NjH00FKdOaX9O');
 
@@ -544,7 +545,7 @@ async tourbypartenaire(req: Request, res: Response): Promise<void> {
             return;
         }
         const tours = partenaire.tours;
-        res.status(200).json({tours:tours,nom_societe:partenaire.inforamtion.inforegester.nom_entreprise});
+        res.status(200).json({tours:tours,nom_societe:partenaire.information.inforegester.nom_entreprise});
     } catch (error) {
         console.log(error);
         res.status(500).json({ error: error });
@@ -647,7 +648,7 @@ async deletepubquiz(req: Request, res: Response): Promise<void> {
                 isverified: false,
             };
 
-            partenaire.inforamtion.inforegester.motdepasse = await bcrypt.hash(partenaire.inforamtion.inforegester.motdepasse, 10);
+            partenaire.information.inforegester.motdepasse = await bcrypt.hash(partenaire.information.inforegester.motdepasse, 10);
 
             const savedPartenaire = await partenaire.save();
             const token = Fonction.createtokenetcookies(res, savedPartenaire._id);
@@ -672,9 +673,10 @@ async deletepubquiz(req: Request, res: Response): Promise<void> {
         }
 
         try {
-            const { email, motdepasse } = req.body;
+            console.log(req.body);
+            const { email, password } = req.body;
             const partenaire = await Partenaires.findOne({ 
-                'inforamtion.inforegester.email': email,
+                'information.inforegester.email': email,
                 'securites.isverified': true 
             });
 
@@ -683,7 +685,13 @@ async deletepubquiz(req: Request, res: Response): Promise<void> {
                 return;
             }
 
-            const match = await bcrypt.compare(motdepasse, partenaire.inforamtion.inforegester.motdepasse);
+            // Vérifier que le mot de passe existe
+            if (!partenaire.information.inforegester.motdepasse) {
+                res.status(400).json({ error: 'Mot de passe non défini pour ce partenaire' });
+                return;
+            }
+
+            const match = await bcrypt.compare(password, partenaire.information.inforegester.motdepasse);
             if (!match) {
                 res.status(400).json({ error: 'Mot de passe incorrect' });
                 return;
@@ -695,17 +703,18 @@ async deletepubquiz(req: Request, res: Response): Promise<void> {
                 success: true,
                 partenaire: {
                     _id: partenaire._id,
-                    inforamtion: {
+                    information: {
                         inforegester: {
-                            nom_entreprise: partenaire.inforamtion.inforegester.nom_entreprise,
-                            email: partenaire.inforamtion.inforegester.email,
-                            telephone: partenaire.inforamtion.inforegester.telephone
+                            nom_entreprise: partenaire.information.inforegester.nom_entreprise,
+                            email: partenaire.information.inforegester.email,
+                            telephone: partenaire.information.inforegester.telephone
                         }
                     }
                 },
                 token
             });
         } catch (error) {
+            console.log(error);
             res.status(500).json({ error: 'Erreur lors de la connexion' });
         } 
     }
@@ -720,11 +729,12 @@ async deletepubquiz(req: Request, res: Response): Promise<void> {
             }
         
             try {
-                const id = req.params.id;
+                const id = req.user;
+                console.log("req.body.information=>",req.body.information.info_societe.adresse.ville);
                 let partenaire = await Partenaires.findById(id);
-        
+                
                 if (!partenaire) {
-                    res.status(404).json({ error: 'Chauffeur non trouvé' });
+                    res.status(404).json({ error: 'Partenaire non trouvé' });
                     return;
                 }
         
@@ -733,49 +743,55 @@ async deletepubquiz(req: Request, res: Response): Promise<void> {
                     // Mise à jour des informations de registre (si nécessaire)
                     'information.inforegester.nom_entreprise': 
                         req.body.information?.inforegester?.nom_entreprise ?? 
-                        partenaire.inforamtion.inforegester.nom_entreprise,
+                        partenaire.information.inforegester.nom_entreprise,
                     
-                    'information.inforegester.Propriétaire': 
+                    'information.inforegester.Proprietaire': 
                         req.body.information?.inforegester?.Proprietaire
                         ?? 
-                        partenaire.inforamtion.inforegester.Proprietaire
-                        ,
+                        partenaire.information.inforegester.Proprietaire,
                     
                     'information.inforegester.email': 
                         req.body.information?.inforegester?.email ?? 
-                        partenaire.inforamtion.inforegester.email,
+                        partenaire.information.inforegester.email,
                     
                     'information.inforegester.telephone': 
                         req.body.information?.inforegester?.telephone ?? 
-                        partenaire.inforamtion.inforegester.telephone,
+                        partenaire.information.inforegester.telephone,
                 
-                    // Ne pas mettre à jour le mot de passe
+                    // Préserver le mot de passe existant pour éviter l'erreur de validation
+                    'information.inforegester.motdepasse': 
+                        partenaire.information.inforegester.motdepasse,
                     
                     // Mise à jour des informations de société
-                    'information.info_societe.numero_serie': 
-                        req.body.information?.info_societe?.numero_serie ?? 
-                        partenaire.inforamtion.info_societe.numero_serie,
+                    'information.info_societe.numero_siret': 
+                        req.body.information?.info_societe?.numero_siret ?? 
+                        partenaire.information.info_societe.numero_siret,
                     
                     'information.info_societe.domaines': 
                         req.body.information?.info_societe?.domaines ?? 
-                        partenaire.inforamtion.info_societe.domaines,
+                        partenaire.information.info_societe.domaines,
                     
                     // Mise à jour de l'adresse
-                    'information.info_societe.adresse': {
-                        'ville': 
-                            req.body.information?.info_societe?.adresse?.ville ?? 
-                            partenaire.inforamtion.info_societe.adresse.ville,
-                        
-                        'pays': 
-                            req.body.information?.info_societe?.adresse?.pays ?? 
-                            partenaire.inforamtion.info_societe.adresse.pays,
-                        
-                        'rue': 
-                            req.body.information?.info_societe?.adresse?.rue ?? 
-                            partenaire.inforamtion.info_societe.adresse.rue
-                    }
+                    'information.info_societe.adresse.ville': 
+                        req.body.information?.info_societe?.adresse?.ville ?? 
+                        partenaire.information.info_societe.adresse.ville,
+                    
+                    'information.info_societe.adresse.pays': 
+                        req.body.information?.info_societe?.adresse?.pays ?? 
+                        partenaire.information.info_societe.adresse.pays,
+                    
+                    'information.info_societe.adresse.rue': 
+                        req.body.information?.info_societe?.adresse?.rue ?? 
+                        partenaire.information.info_societe.adresse.rue,
+                    'information.info_societe.rib': 
+                        req.body.information?.info_societe?.rib ?? 
+                        partenaire.information.info_societe.rib,
+                    'information.info_societe.tva': 
+                        req.body.information?.info_societe?.tva ?? 
+                        partenaire.information.info_societe.tva
                 }
-        
+                    console.log("updateFields=>",updateFields);
+                    
                 // Mise à jour partielle
                 const updatedpartenaire = await Partenaires.findByIdAndUpdate(
                     id, 
@@ -785,6 +801,7 @@ async deletepubquiz(req: Request, res: Response): Promise<void> {
                         runValidators: true  // Valide les champs mis à jour
                     }
                 );
+                console.log('updatedpartenaire=>',updatedpartenaire);
         
                 if (!updatedpartenaire) {
                     res.status(404).json({ error: 'partenaire non trouvé' });
@@ -846,7 +863,7 @@ async deletepubquiz(req: Request, res: Response): Promise<void> {
             const Code: string = Fonction.generecode(100000,900000);;
             partenaire.securites.code = Code;
             await partenaire.save();
-            await Fonction.sendmail(partenaire.inforamtion.inforegester.email, 'Inscription', Code);
+            await Fonction.sendmail(partenaire.information.inforegester.email, 'Inscription', Code);
             res.status(200).json({
                 success: true,
                 message: 'Email envoyé avec succès'
@@ -872,8 +889,11 @@ async deletepubquiz(req: Request, res: Response): Promise<void> {
                 'securites.code': code,
                 'securites.date': { $gt: new Date(Date.now() - 15 * 60 * 1000) }
             });
-
+            console.log(req.body);
+            
             if (!partenaire) {
+                console.log('partenaire non trouvé');
+                
                 res.status(400).json({
                     success: false,
                     message: 'Le code est invalide ou a expiré'
@@ -908,17 +928,26 @@ async deletepubquiz(req: Request, res: Response): Promise<void> {
 
         try {
             const { email } = req.body;
-            const partenaire = await Partenaires.findOne({ 'inforamtion.inforegester.email': email });
+            console.log("email=>",email);
+            
+            const partenaire = await Partenaires.findOne({ 'information.inforegester.email': email });
             if (!partenaire) {
                 res.status(404).json({ error: 'Partenaire non trouvé' });
                 return;
             }
             const resetToken = crypto.randomBytes(20).toString("hex");
             const resetTokenExpiresAt = new Date(Date.now() + 1 * 60 * 60 * 1000);
-            partenaire.resetPasswordToken = resetToken;
-            partenaire.resetPasswordTokenExpire = resetTokenExpiresAt;
-            await partenaire.save();
-            await Fonction.sendmail(email, 'password', process.env.front_end+"/changepassword/" + resetToken);
+            
+            // Utiliser findByIdAndUpdate pour éviter la validation complète
+            await Partenaires.findByIdAndUpdate(
+                partenaire._id,
+                {
+                    resetPasswordToken: resetToken,
+                    resetPasswordTokenExpire: resetTokenExpiresAt
+                },
+                { runValidators: false } // Désactiver la validation pour cette opération
+            );
+            await Fonction.sendmail(email, 'password', process.env.front_end+"/Auth/mot_passe_oblier/reset/?token="+resetToken+"&type=partenaire");
             res.status(200).json({
                 success: true,
                 message: 'Email envoyé avec succès'
@@ -939,18 +968,18 @@ async deletepubquiz(req: Request, res: Response): Promise<void> {
 
         try {
             const { token } = req.params;
-            const { motdepasse } = req.body;
+            const { newPassword } = req.body;
             const partenaire = await Partenaires.findOne({
                 resetPasswordToken: token,
                 resetPasswordTokenExpire: { $gt: Date.now() },
             });
 
-            if (!partenaire || !partenaire.inforamtion || !partenaire.inforamtion.inforegester) {
+            if (!partenaire || !partenaire.information || !partenaire.information.inforegester) {
                 res.status(400).json({ success: false, message: "Token de réinitialisation invalide ou expiré" });
                 return;
             }
-            const hashedPassword = await bcrypt.hash(motdepasse, 10);
-            partenaire.inforamtion.inforegester.motdepasse = hashedPassword;
+            const hashedPassword = await bcrypt.hash(newPassword, 10);
+            partenaire.information.inforegester.motdepasse = hashedPassword;
             partenaire.resetPasswordToken = undefined;
             partenaire.resetPasswordTokenExpire = undefined as any;
             await partenaire.save();
@@ -1128,7 +1157,7 @@ async deletepubquiz(req: Request, res: Response): Promise<void> {
             }
     
             // Check if the current password matches
-            const isMatch = await bcrypt.compare(currentPassword, user.inforamtion.inforegester.motdepasse);
+            const isMatch = await bcrypt.compare(currentPassword, user.information.inforegester.motdepasse);
             if (!isMatch) {
                 res.status(400).json({ message: 'Current password is incorrect' });
                 return 
@@ -1136,7 +1165,7 @@ async deletepubquiz(req: Request, res: Response): Promise<void> {
     
             // Hash the new password
             const hashedPassword = await bcrypt.hash(newPassword, 10);
-            user.inforamtion.inforegester.motdepasse = hashedPassword;
+            user.information.inforegester.motdepasse = hashedPassword;
             await user.save();
     
             res.status(200).json({ message: 'Password changed successfully' });

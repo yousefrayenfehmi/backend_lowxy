@@ -30,6 +30,7 @@ const ChauffeurSchema = new Schema<IChauffeurs>({
         Rib: { type: String, required: false }
     },
     vehicule: {
+        marque: { type: String, required: false },
         matricule: { type: String, required: false },
         modele: { type: String, required: false },
         places: { type: Number, required: false }

@@ -27,7 +27,7 @@ const router: Router = express.Router();
         router.put('/partenaire/:id', ControllerpartenairInstance.verifyToken, ControllerpartenairInstance.updatePartenaire);
         router.delete('/partenaire/:id', ControllerpartenairInstance.verifyToken, ControllerpartenairInstance.deletePartenaire);
         router.get('/partenaires', ControllerpartenairInstance.verifyToken, ControllerpartenairInstance.getAllPartenaires);
-        router.post('/completerpartenaire/:id',ControllerpartenairInstance.completerprofil);
+        router.post('/completerpartenaire',ControllerpartenairInstance.verifyToken,ControllerpartenairInstance.completerprofil);
         router.get('/partenaire/publicitaire/:id',ControllerpartenairInstance.verifyToken,ControllerpartenairInstance.pubetatchanger);
 
         router.post('/partenaire/publicite',ControllerpartenairInstance.verifyToken,ControllerpartenairInstance.Pubsauvgarde);

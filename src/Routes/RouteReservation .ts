@@ -19,6 +19,8 @@ class RouteReservation {
     // Routes pour la création et la confirmation des paiements
     router.post('/reservations/create-payment-session', controllerclientInstance.verifyToken, reservationControllerInstance.createPaymentSession);
     router.post('/reservations/confirm-payment', reservationControllerInstance.confirmPayment);
+    // Checkout par ID de réservation (front: POST /reservations/:reservationId/checkout)
+    router.post('/reservations/:reservationId/checkout', controllerclientInstance.verifyToken, reservationControllerInstance.createReservationCheckoutSessionById.bind(reservationControllerInstance));
 
     // Nouvelle route pour envoyer un email au touriste (avec authentification client)
     router.post('/reservations/envoyer-email-touriste', controllerclientInstance.verifyToken, reservationControllerInstance.envoyerEmailTouriste.bind(reservationControllerInstance));

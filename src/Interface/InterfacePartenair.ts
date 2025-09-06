@@ -2,7 +2,7 @@ import { Document, Types } from "mongoose";
 
 export interface IPartenaire extends Document {
     _id: Types.ObjectId;
-    inforamtion: {
+    information: {
         inforegester: {
             nom_entreprise: string;
             Proprietaire: string;
@@ -11,13 +11,15 @@ export interface IPartenaire extends Document {
             motdepasse: string;
         };
         info_societe: {
-            numero_serie?: string;
+            numero_siret?: string;
             domaines?: string[];
             adresse: {
                 pays?: string;
                 ville?: string;
                 rue?: string;
             };
+            rib?: string;
+            tva?: string;
         };
     };
     tours: Array<{

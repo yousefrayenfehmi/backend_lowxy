@@ -3,7 +3,7 @@ import { IPartenaire } from "../Interface/InterfacePartenair";
 
 
 const partenaireSchema = new Schema<IPartenaire>({
-    inforamtion: {
+    information: {
         inforegester: {
             nom_entreprise: {
                 type: String,
@@ -28,7 +28,7 @@ const partenaireSchema = new Schema<IPartenaire>({
             }
         },
         info_societe: {
-            numero_serie: {
+            numero_siret: {
                 type: String,
             },
             domaines: [String],
@@ -36,7 +36,9 @@ const partenaireSchema = new Schema<IPartenaire>({
                 pays: { type: String },
                 ville: { type: String },
                 rue: { type: String }
-            }
+            },
+            rib: { type: String },
+            tva: { type: String }
         }
     },
     tours: [{

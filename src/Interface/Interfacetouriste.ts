@@ -47,7 +47,7 @@ interface ITouriste extends Document {
     strategy: string;
     google_id: string;
     facebook_id: string;
-    Rib: string;
+    rib: string;
     matricule_taxi: string;
   };
   

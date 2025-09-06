@@ -14,56 +14,7 @@ import { CoveringAd } from "../models/Covering_ads";
 import { Emailtemplates } from "../fonction/EmailTemplates";
 
 class Controlleradmin {
-    async Signup(req: Request, res: Response):Promise<void> {
-        if (mongoose.connection.readyState !== 1) {
-            await dbConnection.getConnection().catch(error => {
-                 res.status(500).json({ error: 'Erreur de connexion à la base de données' });
-                 return
-            });
-        }
-
-        const { email } = req.body;
-        const admin = new Admin(req.body);
-
-        try {
-            const adminExistant = await Admin.findOne({ 'email': email });
-            
-            if (adminExistant) {
-                 res.status(400).json({ error: 'Un admin avec cet email existe déjà' });
-                 return
-            }
-            
-            const Code: string = Fonction.generecode(100000,900000);
-            
-            admin.securites = {
-                code: Code,
-                date: new Date(),
-                isverified: false,
-            };
-            admin.isAdmin = false;
-            
-            admin.mot_de_passe = await bcrypt.hash(admin.mot_de_passe, 10);
-
-            const savedAdmin = await admin.save();
-            const token = Fonction.createtokenetcookies(res, savedAdmin._id);
-            
-            await Fonction.sendmail(email, 'Inscription', Code);
-            
-            res.status(201).json({ 
-                admin: {
-                    _id: savedAdmin._id,
-                    info: {
-                        nom_complet: savedAdmin.nom_complet,
-                        email: savedAdmin.email,
-                        tel: savedAdmin.tel
-                    }
-                }, 
-                token 
-            });
-        } catch (error) {
-            res.status(500).json({ error: 'Erreur lors de la création de l\'admin' });
-        } 
-    }
+   
 async validecovering(req: Request, res: Response): Promise<void> {
     if (mongoose.connection.readyState !== 1) {
         await dbConnection.getConnection().catch(error => {
@@ -202,7 +153,8 @@ async completerprofil(req: Request, res: Response): Promise<void> {
                     info: {
                         nom_complet: admin.nom_complet,
                         email: admin.email,
-                        tel: admin.tel
+                        tel: admin.tel,
+                        type: admin.type
                     }
                 },
                 token
@@ -212,160 +164,10 @@ async completerprofil(req: Request, res: Response): Promise<void> {
         } 
     }
 
-    async renvoyeruncode(req: Request, res: Response):Promise<void> {
-        if (mongoose.connection.readyState !== 1) {
-            await dbConnection.getConnection().catch(error => {
-                 res.status(500).json({ error: 'Erreur de connexion à la base de données' });
-                 return
-            });
-        }
+   
 
-        const id = req.user;
-
-        try {
-            const admin = await Admin.findById(id);
-            if (!admin) {
-                 res.status(404).json({ error: 'Admin non trouvé' });
-                 return
-            }
-            const Code: string = Fonction.generecode(100000,900000);;
-            admin.securites = {
-                code: Code,
-                date: new Date(),
-                isverified: false,
-            };
-            await admin.save();
-            await Fonction.sendmail(admin.email, 'Inscription', Code);
-            res.status(200).json({
-                success: true,
-                message: 'Email envoyé avec succès'    
-            });
-        } catch (error) {
-            res.status(500).json({ error: 'Erreur lors de l\'envoi du code' });
-        } 
-    }
-
-    async VeriffieEmail(req: Request, res: Response):Promise<void> {
-        if (mongoose.connection.readyState !== 1) {
-            await dbConnection.getConnection().catch(error => {
-                 res.status(500).json({ error: 'Erreur de connexion à la base de données' });
-                 return
-            });
-        }
-
-        const id = req.user;
-        const { code } = req.body;
-
-        try {
-            const admin = await Admin.findOne({
-                '_id': id,
-                'securites.code': code,
-                'securites.date': { $gt: new Date(Date.now() - 15 * 60 * 1000) }
-            });
-            
-            if (!admin) {
-                 res.status(400).json({
-                    success: false,
-                    message: 'Le code est invalide ou a expiré'
-                });
-                return
-            }
-            
-            admin.securites = {
-                isverified: true
-            };
-            
-            await admin.save();
-            res.status(200).json({
-                success: true,
-                message: 'Email vérifié avec succès'
-            });
-        } catch (error) {
-            res.status(500).json({
-                success: false,
-                message: 'Erreur lors de la vérification'
-            });
-        } 
-    }
-
-    async forgetpassword(req: Request, res: Response):Promise<void> {
-        if (mongoose.connection.readyState !== 1) {
-            await dbConnection.getConnection().catch(error => {
-                 res.status(500).json({ error: 'Erreur de connexion à la base de données' });
-                 return
-            });
-        }
-
-        const { email } = req.body;
-
-        try {
-            const admin = await Admin.findOne({ 'email': email });
-            
-            if (!admin) {
-                 res.status(404).json({ error: 'Admin non trouvé' });
-                 return
-            }
-            
-            const resetToken = crypto.randomBytes(20).toString("hex");
-            const resetTokenExpiresAt = new Date(Date.now() + 1 * 60 * 60 * 1000);
-            
-            admin.resetPasswordToken = resetToken;
-            admin.resetPasswordTokenExpire = resetTokenExpiresAt;
-            
-            await admin.save();
-            
-            await Fonction.sendmail(email, 'password', resetToken);
-            
-            res.status(200).json({
-                success: true,
-                message: 'Email envoyé avec succès'
-            });
-        } catch (error) {
-            res.status(500).json({ error: 'Erreur lors de l\'envoi du mail de réinitialisation' });
-        } 
-    }
-
-    async resetpassword(req: Request, res: Response):Promise<void> {
-        if (mongoose.connection.readyState !== 1) {
-            await dbConnection.getConnection().catch(error => {
-                 res.status(500).json({ error: 'Erreur de connexion à la base de données' });
-                 return
-            });
-        }
-
-        const { token } = req.params;
-        const { motdepasse } = req.body;
-
-        try {
-            const admin = await Admin.findOne({
-                resetPasswordToken: token,
-                resetPasswordTokenExpire: { $gt: Date.now() },
-            });
-            
-            if (!admin) {
-                 res.status(400).json({ 
-                    success: false, 
-                    message: "Token de réinitialisation invalide ou expiré" 
-                });
-                return
-            }
-            
-            const hashedPassword = await bcrypt.hash(motdepasse, 10);
-            
-            admin.mot_de_passe = hashedPassword;
-            admin.resetPasswordToken = undefined;
-            admin.resetPasswordTokenExpire = undefined as any;
-            
-            await admin.save();
-            
-            res.status(200).json({ 
-                success: true, 
-                message: "Mot de passe réinitialisé avec succès" 
-            });
-        } catch (error) {
-            res.status(500).json({ error: 'Erreur lors de la réinitialisation du mot de passe' });
-        } 
-    }
+    
+    
 
     async verifyAdminToken(req: Request, res: Response, next: NextFunction): Promise<void> {
         console.log("verifyTokenAdmin")

@@ -99,11 +99,14 @@ class TourController {
             if (!partenaire) return;
 
             const tourData = req.body;
+            console.log(tourData);
             //ajouter commission
             tourData.commission=20;
             
             // Valider les données du tour
             if (!tourData.nom || !tourData.description || !tourData.ville || !tourData.duree) {
+                console.log("Données du tour incomplètes");
+                console.log(tourData.nom,tourData.description,tourData.ville,tourData.duree);
                 res.status(400).json({ error: 'Données du tour incomplètes' });
                 return;
             }
@@ -126,6 +129,7 @@ class TourController {
                 tour: nouveauTour 
             });
         } catch (error) {
+            console.log(error);
             console.error('Erreur lors de la création du tour:', error);
             res.status(500).json({ error: 'Erreur lors de la création du tour' });
         }
@@ -318,8 +322,10 @@ class TourController {
 
         try {
             const tourId = req.params.tourId;
+            console.log(req.params);
             
             if (!Types.ObjectId.isValid(tourId)) {
+                
                 res.status(400).json({ error: 'ID tour invalide' });
                 return;
             }
@@ -338,11 +344,12 @@ class TourController {
                     ...JSON.parse(JSON.stringify(tour)),
                     partenaire: {
                         id: partenaire._id,
-                        nom: partenaire.inforamtion.inforegester.nom_entreprise
+                        nom: partenaire.information.inforegester.nom_entreprise
                     }
                 }
             });
         } catch (error) {
+            console.log(error);
             console.error('Erreur lors de la récupération du tour:', error);
             res.status(500).json({ error: 'Erreur lors de la récupération du tour' });
         }
@@ -404,6 +411,7 @@ class TourController {
 
         try {
             const { ville } = req.params;
+            console.log(ville);
             
             // Recherche insensible à la casse
             const partenaires = await Partenaires.find(
@@ -424,7 +432,7 @@ class TourController {
                     toursFiltered.push({
                         tourId: tour._id,
                         partenaireId: partenaire._id,
-                        partenaireNom: partenaire.inforamtion.inforegester.nom_entreprise,
+                        partenaireNom: partenaire.information.inforegester.nom_entreprise,
                         nom: tour.nom,
                         description: tour.description,
                         ville: tour.ville,

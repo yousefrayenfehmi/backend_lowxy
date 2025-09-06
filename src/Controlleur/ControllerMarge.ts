@@ -204,7 +204,7 @@ class MargeController {
                             reservationsConfirmees.push({
                                 reservationId: reservation._id,
                                 partenaireId: partenaire._id,
-                                partenaireName: partenaire.inforamtion?.inforegester?.nom_entreprise || 'Non spécifié',
+                                partenaireName: partenaire.information?.inforegester?.nom_entreprise || 'Non spécifié',
                                 tourId: tour._id,
                                 jourId: jour._id,
                                 clientId: reservation.client_id,

@@ -4,7 +4,7 @@ import { VerifierTokenInstance } from "../midlleware/VerifierToken";
 import { controllerclientInstance } from "../Controlleur/Controllerclient";
 import { ControllerpartenairInstance } from "../Controlleur/Controllerpartenaire";
 import { controllerchauffeurInstance } from "../Controlleur/Controllerchauffeur";
-import { controllerVilleArticleInstance } from "../Controlleur/Controllervillearticle";
+import { ControllervillearticleInstance } from "../Controlleur/Controllervillearticle";
 import { ControllerquestionBankInstance } from "../Controlleur/Controllerquestionquize";
 import { ControllerMargeInstance } from "../Controlleur/ControllerMarge";
 import { Controllercovringads, ControllercovringadsInstance } from "../Controlleur/Controllercovringads";
@@ -20,13 +20,9 @@ class Routeadmin {
     
     initRoutes() {
         // Routes pour la gestion des admins
-        router.post('/admin/singup', controllerAdminInstance.Signup);
+       
         router.post('/admin-login', controllerAdminInstance.login);
-        router.post('/admin-verifier-email',controllerAdminInstance.verifyToken,controllerAdminInstance.VeriffieEmail)
-        router.post('/admin/passwordoublier',controllerAdminInstance.forgetpassword)
-        router.get("/admin/reset-password/:token", controllerAdminInstance.resetpassword);
         router.get("admin/logout", controllerAdminInstance.logout);
-        router.get('/admin-reenvoyercode',controllerclientInstance.verifyToken,controllerAdminInstance.renvoyeruncode);
         router.post('/admin/validecovering/:id',controllerAdminInstance.verifyToken,controllerAdminInstance.validecovering);
         //CrudcreateAdmin
         router.post('/admin-create',controllerAdminInstance.createAdmin);
@@ -56,13 +52,12 @@ class Routeadmin {
         router.put('/admins/partenaire/:id', controllerAdminInstance.verifyToken,ControllerpartenairInstance.updatePartenaire);
         router.delete('/admins/partenaire/:id', controllerAdminInstance.verifyToken,ControllerpartenairInstance.deletePartenaire);
         //crud villeArticle sans token
-        router.post('/admins/villeArticle',controllerAdminInstance.verifyToken,controllerVilleArticleInstance.createVilleArticle);
-        router.get('/admin/villeArticle/:id',controllerAdminInstance.verifyToken,controllerVilleArticleInstance.getVilleArticleById);
-        router.get('/admins-villeArticle/:id',controllerVilleArticleInstance.getVilleArticleById);
-        router.put('/admine/villeArticle/:id',controllerAdminInstance.verifyToken,controllerVilleArticleInstance.updateVilleArticle);
-        router.put('/admine/villeArticle',controllerAdminInstance.verifyToken,controllerVilleArticleInstance.updateVilleArticle);
-        router.delete('/admin/villeArticle/:id',controllerAdminInstance.verifyToken,controllerVilleArticleInstance.deleteVilleArticle);
-        router.delete('/admine/villeArticle/:id',controllerVilleArticleInstance.deleteVilleArticle);
+        router.post('/admins/villeArticle',ControllervillearticleInstance.createVilleArticle);
+        router.get('/admin/villeArticle',ControllervillearticleInstance.getVilleArticle);
+        router.put('/admine/villeArticle/:id',ControllervillearticleInstance.updateVilleArticle);
+        router.delete('/admine/villeArticle/:id',ControllervillearticleInstance.deleteVilleArticle);
+        router.get('/admin/villeArticle/:ville',ControllervillearticleInstance.getVilleArticleByVille);
+        //
         router.get('/admine-partenaire/pub-quiz/:id',controllerAdminInstance.verifyToken,ControllerpartenairInstance.pubetatchanger);
         router.delete('/admine-partenaire/pub-quiz/:id',controllerAdminInstance.verifyToken,ControllerpartenairInstance.deletepubquiz);
         //crud marge
@@ -75,8 +70,7 @@ class Routeadmin {
         
         router.post('/admins-marges/global', controllerAdminInstance.verifyToken, ControllerMargeInstance.applyGlobalMarge);
 
-        router.post('/admine/villeArticle',controllerVilleArticleInstance.createVilleArticle);
-        router.get('/admine/villeArticles',controllerAdminInstance.verifyToken,controllerVilleArticleInstance.getAllVilleArticles);
+        
         //crud question
         router.post('/admin/question',ControllerquestionBankInstance.createQuestion);
         router.get('/question',ControllerquestionBankInstance.getAllQuestions);
@@ -93,9 +87,7 @@ class Routeadmin {
         router.post('/admin-verifyToken',controllerAdminInstance.verifyAdminToken);
 
 
-        // Ajout des routes pour S3
-        router.post('/admine/villeArticle/s3', controllerAdminInstance.verifyToken,controllerVilleArticleInstance.createVilleArticleS3);
-        router.put('/admine/villeArticle/s3', controllerAdminInstance.verifyToken,controllerVilleArticleInstance.updateVilleArticleS3);
+       
 
         //covering
         router.get('/covering-admine/:id',controllerAdminInstance.verifyToken,ControllercovringadsInstance.getcoveringadsById)

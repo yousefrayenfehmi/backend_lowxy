@@ -101,7 +101,7 @@ const touristeSchema = new Schema<ITouriste>({
     facebook_id: {
       type: String
     },
-    Rib: { type: String },
+    rib: { type: String },
     matricule_taxi: {
       type: String
     }

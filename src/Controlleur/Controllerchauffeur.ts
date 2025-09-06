@@ -57,8 +57,8 @@ class controllerchauffeur {
         }
 
         try {
-            const { email, motdepasse } = req.body;
-            console.log(email, motdepasse);
+            const { email, password } = req.body;
+            console.log(email, password);
             
             const chauffeur = await Chauffeurs.findOne({ 'info.email': email, 'securites.isverified': true });
             console.log(chauffeur);
@@ -68,7 +68,7 @@ class controllerchauffeur {
                  return
             }
 
-            const match = await bcrypt.compare(motdepasse, chauffeur.info.motdepasse);
+            const match = await bcrypt.compare(password, chauffeur.info.motdepasse);
             if (!match) {
                  res.status(400).json({ error: 'Mot de passe incorrect' });
                  return
@@ -256,7 +256,7 @@ try {
             chauffeur.resetPasswordToken = resetToken;
             chauffeur.resetPasswordTokenExpire = resetTokenExpiresAt;
             await chauffeur.save();
-            Fonction.sendmail(email, 'password', process.env.front_end+"/changepassword/" + resetToken);
+            Fonction.sendmail(email, 'password', process.env.front_end+"/Auth/mot_passe_oblier/reset/?token="+resetToken+"&type=chauffeur");
             res.status(200).json({
                 success: true,
                 message: 'email envoyé avec succès'
@@ -276,7 +276,7 @@ try {
 
         try {
             const { token } = req.params;
-            const { motdepasse } = req.body;
+            const { newPassword } = req.body;
             const chauffeur = await Chauffeurs.findOne({
                 resetPasswordToken: token,
                 resetPasswordTokenExpire: { $gt: Date.now() },
@@ -286,7 +286,7 @@ try {
                  res.status(400).json({ success: false, message: "Token de réinitialisation invalide ou expiré" });
                  return
             }
-            const hashedPassword = await bcrypt.hash(motdepasse, 10);
+            const hashedPassword = await bcrypt.hash(newPassword, 10);
             chauffeur.info.motdepasse = hashedPassword;
             chauffeur.resetPasswordToken = undefined;
             chauffeur.resetPasswordTokenExpire = undefined as any;
@@ -330,6 +330,7 @@ try {
                 token
             });
         } catch (error) {
+            console.log(error);
             res.status(500).json({ error: error });
         } 
     }
@@ -376,7 +377,7 @@ try {
         }
     
         try {
-            const id = req.params.id;
+            const id = req.user;
             let chauffeur = await Chauffeurs.findById(id);
     
             if (!chauffeur) {
@@ -398,6 +399,11 @@ try {
                 },
                 
                 'info.Rib': req.body.info?.Rib ?? chauffeur.info.Rib,
+                 'vehicule.matricule': req.body.vehicule?.matricule ?? chauffeur.vehicule.matricule,
+                 'vehicule.modele': req.body.vehicule?.modele ?? chauffeur.vehicule.modele,
+                 'vehicule.places': req.body.vehicule?.places ?? chauffeur.vehicule.places,
+                 'vehicule.marque': req.body.vehicule?.marque ?? chauffeur.vehicule.marque,
+                 
             };
             
     
@@ -442,6 +448,7 @@ try {
         try {
             const id = req.user;
             const { code } = req.body;
+            
             let matricule=Fonction.generermatricle();
             const chauffeur = await Chauffeurs.findOne({
                 '_id': id,
@@ -450,6 +457,7 @@ try {
             });
 
             if (!chauffeur) {
+                console.log('chauffeur non trouvé');
                  res.status(400).json({
                     success: false,
                     message: 'Le code est invalide ou a expiré'

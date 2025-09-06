@@ -39,7 +39,7 @@ import { ControllerpartenairInstance } from './Controlleur/Controllerpartenaire'
 dotenv.config({ path: path.resolve(__dirname, '../.env') });
 
 const app: Application = express();
-const port = 3000;
+const port = 5000;
 
 // Configuration S3
 const s3 = new S3({
