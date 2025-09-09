@@ -15,7 +15,7 @@ class Routecoveringads {
 
     private initRoutes() {
         // Route pour créer une campagne publicitaire
-        router.post('/create/:nom_societe', VerifierTokenInstance.verifyToken, ControllercovringadsInstance.paidcovering);
+        router.post('/create', VerifierTokenInstance.verifyToken, ControllercovringadsInstance.paidcovering);
 
         // Route pour sauvegarder une campagne après paiement
         router.post('/save', VerifierTokenInstance.verifyToken, ControllercovringadsInstance.savecovering);

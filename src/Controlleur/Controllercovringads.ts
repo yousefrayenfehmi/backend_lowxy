@@ -15,45 +15,32 @@ import { Emailtemplates } from "../fonction/EmailTemplates";
 import { log } from "console";
 import path from "path";
 import { Admin } from "../models/Admin";
-const stripe = new Stripe('sk_test_51RAG0WQ4fzXaDh6qqaSa4kETsLitTt3nAHAnaPoodCOrgstRL0puvbFYG6KoruYmawEgL3o8NJ5DmywcApPS2NjH00FKdOaX9O');
+const stripe = new Stripe('sk_test_51S3lkdQyRlRGZEmDNI1UnQ94xHMubhAmKIDEu2g7iapu5PuTSRYRstBEZ1ZHBLmoNE6f7fm0JlF7GbbWYWfTHPB9007zXrJlsS');
+
 export class Controllercovringads {
 
-    paidcovering(req: Request, res: Response): void {
-      upload(req, res, async (err) => {
-        if (err) {
-            console.error('Erreur multer:', err);
-            res.status(400).json({ message: 'Erreur lors de l\'upload des fichiers: ' + err.message });
-            return;
-        }
-        //recuperer les fichiers uploadés
-        const files = req.files as { [fieldname: string]: Express.Multer.File[] };
-        //verifier s'il y a des fichiers
-        if (!files || (!files['covering'] || files['covering'].length === 0)) {
-            res.status(400).json({ message: 'Aucun fichier image ou vidéo envoyé' });
-            return;
-        }
+    async paidcovering(req: Request, res: Response): Promise<void> {
+       
+        
+        
+        
+       
         console.log(req.body);
         
-        //Traiter les images avec S3
-        const coveringFile = files['covering'][0];
-        const fileName = `covering-${Date.now()}-${Math.round(Math.random() * 1E9)}${path.extname(coveringFile.originalname)}`;
-        const destination = `covering_ads/${req.params.nom_societe}/images/${fileName}`;
-        
         try {
-            const fileUrl = await uploadToS3(coveringFile, destination);
             
             const covring = {
                 _id: new Types.ObjectId(),
-                image: fileUrl,
-                modele_voiture: req.body.model_voiture,
-                type_covering: req.body.type_covering,
-                nombre_taxi: req.body.nombre_de_taxi,
-                nombre_jour: req.body.nombre_de_jour,
-                prix: req.body.prix,
+                image: req.body.details.image,
+                modele_voiture: req.body.details.modele_voiture,
+                type_covering: req.body.details.type_covering,
+                nombre_taxi: req.body.details.nombre_taxi,
+                nombre_jour: req.body.details.nombre_jour,
+                prix: req.body.details.prix,
                 statu: 'pending',
-                impressions: 0,
-                clicks: 0
+                
             };
+            console.log(covring);
 
             const session = await stripe.checkout.sessions.create({
                 payment_method_types: ['card'],
@@ -71,8 +58,8 @@ export class Controllercovringads {
                     },
                 ],
                 mode: 'payment',
-                success_url: `${ process.env.front_end }/paiment_sucesses/${covring._id}?data=${encodeURIComponent(JSON.stringify(covring))}&type=covering`,
-                cancel_url: `${process.env.front_end}/paiment_echouee/${covring._id}?type=covering`,
+                success_url: `${process.env.front_end}/Covering_ads/Personnel/partenaire/paiment_sucesses/${covring._id}?data=${encodeURIComponent(JSON.stringify(covring))}`,
+                cancel_url: `${process.env.front_end}/Covering_ads/Personnel/partenaire/paiment_echouee/${covring._id}?type=covering`,
             });
 
             res.status(200).json({ id: session.id });
@@ -80,8 +67,9 @@ export class Controllercovringads {
             console.error('Erreur lors de l\'upload sur S3:', error);
             res.status(500).json({ message: 'Erreur lors de l\'upload: ' + error.message });
         }
-    });
-    }
+    }  
+    
+
 
 
     async savecovering(req: Request, res: Response): Promise<void> {
@@ -92,6 +80,7 @@ export class Controllercovringads {
         });
     }
     try {
+      console.log("req.body:"+req.body);
       const id = req.user;
       const coveringAd = req.body;
       console.log('coveringAd:'+coveringAd);
@@ -112,6 +101,18 @@ export class Controllercovringads {
         coveringAd._id = new Types.ObjectId();
       }
       
+      // Mapper les champs potentiellement différents envoyés par le front
+      const image = coveringAd.image || coveringAd.lien_photo;
+      const modele_voiture = coveringAd.modele_voiture || coveringAd.type_voiture;
+      const nombre_taxi = coveringAd.nombre_taxi ?? coveringAd.nombre_taxis;
+      const nombre_jour = coveringAd.nombre_jour ?? coveringAd.nombre_jours;
+      const statutClient = coveringAd.statu || coveringAd.status || coveringAd.statut;
+      const normalizedStatus = (statutClient || '').toLowerCase() === 'active'
+        ? 'Active'
+        : (statutClient || '').toLowerCase() === 'completed'
+          ? 'Completed'
+          : 'Pending';
+
       // Créer un nouvel objet CoveringAd avec tous les champs requis
       const coveringAds = new CoveringAd({
         _id: coveringAd._id,
@@ -120,14 +121,14 @@ export class Controllercovringads {
           id: id as Types.ObjectId
         },
         details: {
-          modele_voiture: coveringAd.type_voiture,
+          modele_voiture: modele_voiture,
           type_covering: coveringAd.type_covering,
-          image: coveringAd.lien_photo,
-          nombre_taxi: parseInt(coveringAd.nombre_taxi),
-          nombre_jour: parseInt(coveringAd.nombre_jours),
+          image: image,
+          nombre_taxi: parseInt(nombre_taxi),
+          nombre_jour: parseInt(nombre_jour),
           prix: parseFloat(coveringAd.prix)
         },
-        status:  'Pending',
+        status:  normalizedStatus,
         assigned_taxis: coveringAd.assigned_taxis || []
       });
       
