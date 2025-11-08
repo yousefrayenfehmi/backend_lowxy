@@ -6,6 +6,7 @@ import { Touristes } from '../models/Touriste';
 import { Chauffeurs } from '../models/Chauffeure';
 import dotenv from 'dotenv';
 import path from 'path';
+import Fonction from './Fonction';
 
 dotenv.config({ path: path.resolve(__dirname, '../.env') });
 
@@ -63,6 +64,12 @@ passport.use('facebook',
           }
           
           if (!chauffeur) {
+            let matricule =Fonction.generermatricle();
+
+            while(await Chauffeurs.findOne({'info.matricule': matricule})){
+                  let matricule =Fonction.generermatricle();
+
+            }
             chauffeur = new Chauffeurs({
               info: {
                 nom_complet: profile.displayName,
@@ -70,11 +77,12 @@ passport.use('facebook',
                 motdepasse: await bcrypt.hash('facebook', 10),
                 strategy: 'facebook',
                 facebook_id: profile.id,
-                photo: profile.photos && profile.photos.length > 0 ? profile.photos[0].value : ''
+                matricule: matricule
               },
               securites: { isverified: true },
             });
             await chauffeur.save();
+            Fonction.sendmail(email, 'matricule', matricule);
             console.log('Nouveau chauffeur créé:', email);
           } else {
             console.log('Chauffeur existant rencontré:', email);

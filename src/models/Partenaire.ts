@@ -1,15 +1,15 @@
 import mongoose, { Schema, Document, Types } from "mongoose";
-import IPartenaire from "../Interface/InterfacePartenair";
+import { IPartenaire } from "../Interface/InterfacePartenair";
 
 
 const partenaireSchema = new Schema<IPartenaire>({
-    inforamtion: {
+    information: {
         inforegester: {
             nom_entreprise: {
                 type: String,
                 required: true
             },
-            Propriétaire: {
+            Proprietaire: {
                 type: String,
                 required: true
             },
@@ -28,16 +28,17 @@ const partenaireSchema = new Schema<IPartenaire>({
             }
         },
         info_societe: {
-            numero_serie: {
+            numero_siret: {
                 type: String,
-                unique: true
             },
             domaines: [String],
             adresse: {
                 pays: { type: String },
                 ville: { type: String },
                 rue: { type: String }
-            }
+            },
+            rib: { type: String },
+            tva: { type: String }
         }
     },
     tours: [{
@@ -49,55 +50,63 @@ const partenaireSchema = new Schema<IPartenaire>({
             depart: String,
             arrivee: String,
             plan: String
-        },
+        }, 
+        images: [String],
+        commission: {type: Number,required: true,default:20},
         jours: [{
             date: Date,
             depart: String,
             capacite: {
-                adultes: Number,
+                adultes: Number,    
                 enfants: Number
             },
-            prix: Number,
-            supplements: [String]
-        }],
-        reservations: [{
-            client_id: { type: Schema.Types.ObjectId, ref: 'Client' },
-            date: Date,
-            participants: {
-                adultes: Number,
-                enfants: Number
+            prix: {
+                adulte: { type: Number, required: true },
+                enfant: { type: Number, required: true }
             },
-            prix_total: Number
+            supplements: [String],
+            reservations: [{
+                client_id: { type: Schema.Types.ObjectId, ref: 'Client' },
+                date: Date,
+                participants: {
+                    adultes: Number,
+                    enfants: Number
+                },
+                prix_total: Number,
+                // Nouveaux champs pour la gestion des paiements
+                statut: { 
+                    type: String, 
+                    enum: ['en attente de paiement', 'confirmée', 'annulée'],
+                    default: 'en attente de paiement'
+                },
+                payment_id: { type: String },
+                payment_date: { type: Date }
+            }]
         }]
     }],
-    publicites: [{
-        contenu: {
-            bannieres: [String],
-            videos: [String]
-        },
-        config: {
-            taille: String,
-            duree: Number,
-            nbrTaxi: Number
-        },
-        periode: {
-            debut: Date,
-            fin: Date
-        },
-        chauffeurs: [{
-            chauffeur_id: { type: Schema.Types.ObjectId, ref: 'Chauffeur' },
-            date_debut: Date
-        }]
+    covering_ads: [{
+        image: { type: String },
+        modele_voiture: {type:String},
+        type_covering: {type:String},
+        nombre_taxi: {type:Number},
+        nombre_jour:{type:Number},
+        prix: {type:Number}
     }],
     pub_quiz: [{
+        
         bannieres: [String],
         videos: [String],
         call_to_action: [String],
-        keywords: [String],
+        keywords: [Array],
         periode: {
             debut: Date,
             fin: Date
-        }
+        },
+        Budget_totale:{type: Number},
+        statu: {type: String,required: true,default:'pending'},
+        impressions: {type: Number},
+        clicks: {type: Number},
+        facturation: {type: String},
     }],
     securites: {
         code: { type: String, required: false },
@@ -112,7 +121,6 @@ const partenaireSchema = new Schema<IPartenaire>({
 
 // Index
 partenaireSchema.index({ 'inforamtion.inforegester.email': 1 }, { unique: true });
-partenaireSchema.index({ 'inforamtion.info_societe.numero_serie': 1 }, { unique: true });
 
 // TTL Index
 partenaireSchema.index( { "resetPasswordTokenExpire": 1 }, { expireAfterSeconds: 3600 } );

@@ -7,60 +7,115 @@ import Fonction from "../fonction/Fonction";
 import jwt from 'jsonwebtoken';
 import mongoose from 'mongoose';
 import { promises } from "dns";
+import { Touristes } from "../models/Touriste";
+import { Chauffeurs } from '../models/Chauffeure'; 
+import { Partenaires } from "../models/Partenaire";
+import { CoveringAd } from "../models/Covering_ads";
+import { Emailtemplates } from "../fonction/EmailTemplates";
 
 class Controlleradmin {
-    async Signup(req: Request, res: Response):Promise<void> {
-        if (mongoose.connection.readyState !== 1) {
-            await dbConnection.getConnection().catch(error => {
-                 res.status(500).json({ error: 'Erreur de connexion à la base de données' });
-                 return
-            });
-        }
-
-        const { email } = req.body;
-        const admin = new Admin(req.body);
-
-        try {
-            const adminExistant = await Admin.findOne({ 'email': email });
-            
-            if (adminExistant) {
-                 res.status(400).json({ error: 'Un admin avec cet email existe déjà' });
-                 return
-            }
-            
-            const Code: string = Fonction.generecode();
-            
-            admin.securites = {
-                code: Code,
-                date: new Date(),
-                isverified: false,
-            };
-            admin.isAdmin = false;
-            
-            admin.mot_de_passe = await bcrypt.hash(admin.mot_de_passe, 10);
-
-            const savedAdmin = await admin.save();
-            const token = Fonction.createtokenetcookies(res, savedAdmin._id);
-            
-            await Fonction.sendmail(email, 'Inscription', Code);
-            
-            res.status(201).json({ 
-                admin: {
-                    _id: savedAdmin._id,
-                    info: {
-                        nom_complet: savedAdmin.nom_complet,
-                        email: savedAdmin.email,
-                        tel: savedAdmin.tel
-                    }
-                }, 
-                token 
-            });
-        } catch (error) {
-            res.status(500).json({ error: 'Erreur lors de la création de l\'admin' });
-        } 
+   
+async validecovering(req: Request, res: Response): Promise<void> {
+    if (mongoose.connection.readyState !== 1) {
+        await dbConnection.getConnection().catch(error => {
+            res.status(500).json({ error: 'Erreur de connexion à la base de données' });
+            return;
+        });
     }
 
+    const { id } = req.params;
+    
+       try {
+        const covering = await CoveringAd.findByIdAndUpdate(id, { $set: { status: 'active' } }, { new: true });
+        if (!covering) {
+            res.status(404).json({ error: 'Covering non trouvé' });
+            return;
+        }
+        const baseUrl = process.env.FRONTEND_URL || 'http://localhost:4200';
+    const coveringURL = `${baseUrl}/covering-ads-commande`;
+        const chauffeurs = await Chauffeurs.find(
+            { 'vehicule.modele': covering.details.modele_voiture }
+          );
+          let emailsSent = 0;
+
+          for (const chauffeur of chauffeurs) {
+            await Fonction.sendmail(
+                chauffeur.info.email,
+                'Nouvelle Opportunité Publicitaire pour votre Taxi',
+                Emailtemplates.getNewCoveringNotification(
+                  {
+                    modele: covering.details.modele_voiture,
+                    type: covering.details.type_covering,
+                    prix: (covering.details.prix/2)/covering.details.nombre_taxi
+                  },
+                  coveringURL
+                )
+              );
+              emailsSent++;
+          }
+        res.status(200).json({ message: 'Covering validé avec succès' });
+    } catch (error) {
+        res.status(500).json({ error: 'Erreur lors de la validation du covering' });
+    }
+
+}
+
+async completerprofil(req: Request, res: Response): Promise<void> {
+        if (mongoose.connection.readyState !== 1) {
+            await dbConnection.getConnection().catch(error => {
+                res.status(500).json({ error: 'Erreur de connexion à la base de données' });
+                return;
+            });
+        }
+    
+        try {
+            const id = req.params.id;
+            let admin = await Admin.findById(id);
+    
+            if (!admin) {
+                res.status(404).json({ error: 'Chauffeur non trouvé' });
+                return;
+            }
+    
+            const updateFields = {
+                'nom_complet': req.body.nom_complet ?? admin.nom_complet,
+                
+                'tel': req.body.tel ?? admin.tel
+            };
+    
+            const updatedadmin = await Admin.findByIdAndUpdate(
+                id, 
+                { $set: updateFields }, 
+                { 
+                    new: true,  // Retourne le document mis à jour
+                    runValidators: true  // Valide les champs mis à jour
+                }
+            );
+    
+            if (!updatedadmin) {
+                res.status(404).json({ error: 'admin non trouvé' });
+                return;
+            }
+    
+            res.status(200).json({
+                message: 'Profil mis à jour avec succès',
+                chauffeur: updatedadmin
+            });
+    
+        } catch (error) {
+            console.error('Erreur lors de la mise à jour du admin:', error);
+            res.status(500).json({ 
+                error: 'Erreur lors de la mise à jour du admin'
+                
+            });
+        }
+    }
+
+
+
+
     async login(req: Request, res: Response):Promise<void> {
+        console.log("admin try to login")
         if (mongoose.connection.readyState !== 1) {
             await dbConnection.getConnection().catch(error => {
                  res.status(500).json({ error: 'Erreur de connexion à la base de données' });
@@ -69,11 +124,12 @@ class Controlleradmin {
         }
 
         const { email, mot_de_passe } = req.body;
+        console.log(email, mot_de_passe)
 
         try {
             const admin = await Admin.findOne({ 
                 'email': email,
-                'securites.isverified': true,
+                
                 'isAdmin': true
             });
             
@@ -97,7 +153,8 @@ class Controlleradmin {
                     info: {
                         nom_complet: admin.nom_complet,
                         email: admin.email,
-                        tel: admin.tel
+                        tel: admin.tel,
+                        type: admin.type
                     }
                 },
                 token
@@ -107,162 +164,13 @@ class Controlleradmin {
         } 
     }
 
-    async renvoyeruncode(req: Request, res: Response):Promise<void> {
-        if (mongoose.connection.readyState !== 1) {
-            await dbConnection.getConnection().catch(error => {
-                 res.status(500).json({ error: 'Erreur de connexion à la base de données' });
-                 return
-            });
-        }
+   
 
-        const id = req.user;
+    
+    
 
-        try {
-            const admin = await Admin.findById(id);
-            if (!admin) {
-                 res.status(404).json({ error: 'Admin non trouvé' });
-                 return
-            }
-            const Code: string = Fonction.generecode();
-            admin.securites = {
-                code: Code,
-                date: new Date(),
-                isverified: false,
-            };
-            await admin.save();
-            await Fonction.sendmail(admin.email, 'Inscription', Code);
-            res.status(200).json({
-                success: true,
-                message: 'Email envoyé avec succès'    
-            });
-        } catch (error) {
-            res.status(500).json({ error: 'Erreur lors de l\'envoi du code' });
-        } 
-    }
-
-    async VeriffieEmail(req: Request, res: Response):Promise<void> {
-        if (mongoose.connection.readyState !== 1) {
-            await dbConnection.getConnection().catch(error => {
-                 res.status(500).json({ error: 'Erreur de connexion à la base de données' });
-                 return
-            });
-        }
-
-        const id = req.user;
-        const { code } = req.body;
-
-        try {
-            const admin = await Admin.findOne({
-                '_id': id,
-                'securites.code': code,
-                'securites.date': { $gt: new Date(Date.now() - 15 * 60 * 1000) }
-            });
-            
-            if (!admin) {
-                 res.status(400).json({
-                    success: false,
-                    message: 'Le code est invalide ou a expiré'
-                });
-                return
-            }
-            
-            admin.securites = {
-                isverified: true
-            };
-            
-            await admin.save();
-            res.status(200).json({
-                success: true,
-                message: 'Email vérifié avec succès'
-            });
-        } catch (error) {
-            res.status(500).json({
-                success: false,
-                message: 'Erreur lors de la vérification'
-            });
-        } 
-    }
-
-    async forgetpassword(req: Request, res: Response):Promise<void> {
-        if (mongoose.connection.readyState !== 1) {
-            await dbConnection.getConnection().catch(error => {
-                 res.status(500).json({ error: 'Erreur de connexion à la base de données' });
-                 return
-            });
-        }
-
-        const { email } = req.body;
-
-        try {
-            const admin = await Admin.findOne({ 'email': email });
-            
-            if (!admin) {
-                 res.status(404).json({ error: 'Admin non trouvé' });
-                 return
-            }
-            
-            const resetToken = crypto.randomBytes(20).toString("hex");
-            const resetTokenExpiresAt = new Date(Date.now() + 1 * 60 * 60 * 1000);
-            
-            admin.resetPasswordToken = resetToken;
-            admin.resetPasswordTokenExpire = resetTokenExpiresAt;
-            
-            await admin.save();
-            
-            await Fonction.sendmail(email, 'password', resetToken);
-            
-            res.status(200).json({
-                success: true,
-                message: 'Email envoyé avec succès'
-            });
-        } catch (error) {
-            res.status(500).json({ error: 'Erreur lors de l\'envoi du mail de réinitialisation' });
-        } 
-    }
-
-    async resetpassword(req: Request, res: Response):Promise<void> {
-        if (mongoose.connection.readyState !== 1) {
-            await dbConnection.getConnection().catch(error => {
-                 res.status(500).json({ error: 'Erreur de connexion à la base de données' });
-                 return
-            });
-        }
-
-        const { token } = req.params;
-        const { motdepasse } = req.body;
-
-        try {
-            const admin = await Admin.findOne({
-                resetPasswordToken: token,
-                resetPasswordTokenExpire: { $gt: Date.now() },
-            });
-            
-            if (!admin) {
-                 res.status(400).json({ 
-                    success: false, 
-                    message: "Token de réinitialisation invalide ou expiré" 
-                });
-                return
-            }
-            
-            const hashedPassword = await bcrypt.hash(motdepasse, 10);
-            
-            admin.mot_de_passe = hashedPassword;
-            admin.resetPasswordToken = undefined;
-            admin.resetPasswordTokenExpire = undefined as any;
-            
-            await admin.save();
-            
-            res.status(200).json({ 
-                success: true, 
-                message: "Mot de passe réinitialisé avec succès" 
-            });
-        } catch (error) {
-            res.status(500).json({ error: 'Erreur lors de la réinitialisation du mot de passe' });
-        } 
-    }
-
-    async verifyToken(req: Request, res: Response, next: NextFunction): Promise<void> {
+    async verifyAdminToken(req: Request, res: Response, next: NextFunction): Promise<void> {
+        console.log("verifyTokenAdmin")
         if (mongoose.connection.readyState !== 1) {
             await dbConnection.getConnection().catch(error => {
                 return res.status(500).json({ error: 'Erreur de connexion à la base de données' });
@@ -271,7 +179,7 @@ class Controlleradmin {
 
         const authHeader = req.headers['authorization'];
         const token = authHeader && authHeader.split(' ')[1];
-
+        console.log(token)
         if (!token) {
             res.status(401).json({ message: 'Token manquant' });
             return;
@@ -286,9 +194,45 @@ class Controlleradmin {
                 res.status(401).json({ message: 'Admin non trouvé' });
                 return;
             }
+            console.log("admin Token Verified   ")
+            req.user = id;
+            res.status(200).json({ message: 'Token valide', userId: id });
+
             
+        } catch (err) {
+            res.status(403).json({ message: 'Token invalide' });
+        } 
+    }
+
+    async verifyToken(req: Request, res: Response, next: NextFunction): Promise<void> {
+        console.log("verifyTokenAdmin")
+        if (mongoose.connection.readyState !== 1) {
+            await dbConnection.getConnection().catch(error => {
+                return res.status(500).json({ error: 'Erreur de connexion à la base de données' });
+            });
+        }
+
+        const authHeader = req.headers['authorization'];
+        const token = authHeader && authHeader.split(' ')[1];
+        console.log(token)
+        if (!token) {
+            res.status(401).json({ message: 'Token manquant' });
+            return;
+        }
+
+        try {
+            const decoded = jwt.verify(token as string, process.env.JWT_SECRET as string);
+            const { id } = decoded as { id: string };
+            const admin = await Admin.findById(id);
+            
+            if (!admin) {
+                res.status(401).json({ message: 'Admin non trouvé' });
+                return;
+            }
+            console.log("admin Token Verified   ")
             req.user = id;
             next();
+            
         } catch (err) {
             res.status(403).json({ message: 'Token invalide' });
         } 
@@ -300,14 +244,18 @@ class Controlleradmin {
                 return res.status(500).json({ error: 'Erreur de connexion à la base de données' });
             });
         }
-
+        console.log(req.body)
         const admin = new Admin(req.body);
-
+        console.log(admin)
         try {
+            admin.mot_de_passe = await bcrypt.hash(req.body.motdepasse, 10);
+            console.log('hash')
             const savedAdmin = await admin.save();
+            console.log('saved')
             res.status(201).json(savedAdmin);
         } catch (error) {
-            res.status(500).json({ error: 'Erreur lors de la création de l\'admin' });
+            console.log(error)
+            res.status(500).json({ error: "Erreur lors de la création de l'admin" });
         } 
     }
 
@@ -347,7 +295,7 @@ class Controlleradmin {
             }
             res.status(200).json(admin);
         } catch (error) {
-            res.status(500).json({ error: 'Erreur lors de la recherche de l\'admin' });
+            res.status(500).json({ error: "Erreur lors de la recherche de l'admin" });
         } 
     }
 
@@ -367,7 +315,7 @@ class Controlleradmin {
             }
             res.status(200).json(admin);
         } catch (error) {
-            res.status(500).json({ error: 'Erreur lors de la mise à jour de l\'admin' });
+            res.status(500).json({ error: "Erreur lors de la mise à jour de l'admin" });
         } 
     }
 
@@ -387,7 +335,7 @@ class Controlleradmin {
             }
             res.status(200).json(admin);
         } catch (error) {
-            res.status(500).json({ error: 'Erreur lors de la suppression de l\'admin' });
+            res.status(500).json({ error: "Erreur lors de la suppression de l'admin" });
         } 
     }
 
@@ -412,6 +360,69 @@ class Controlleradmin {
             });
         } 
     }
+
+    async getTouristeNumberbyMatricule(req: Request, res: Response): Promise<void> {
+        if (mongoose.connection.readyState !== 1) {
+            try {
+                await dbConnection.getConnection();
+            } catch (error) {
+                res.status(500).json({ error: 'Erreur de connexion à la base de données' });
+                return;
+            }
+        }
+        try {
+            const matricule=req.params.matricule;
+            const touriste = await Touristes.find({ 'info.matricule_taxi': matricule });
+            res.status(200).json(touriste.length);
+        } catch (error) {
+            res.status(500).json({ error: 'Erreur lors de la récupération du touriste' });
+        }
+    }
+
+    async getStatistics(req: Request, res: Response): Promise<void> {
+        try {
+            // Récupérer les statistiques à partir des collections MongoDB
+            const usersCount = await Touristes.countDocuments();
+            const newUsersCount = await Touristes.countDocuments({ createdAt: { $gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) } });
+    
+            const driversCount = await Chauffeurs.countDocuments();
+            const newDriversCount = await Chauffeurs.countDocuments({ createdAt: { $gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) } });
+    
+            const partnersCount = await Partenaires.countDocuments();
+            const newPartnersCount = await Partenaires.countDocuments({ createdAt: { $gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) } });
+    
+            const toursCount = await Partenaires.aggregate([{ $unwind: "$tours" }, { $count: "count" }]);
+            const newToursCount = await Partenaires.aggregate([{ $unwind: "$tours" }, { $match: { "tours.jours.date": { $gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) } } }, { $count: "count" }]);
+    
+            const adsCount = await Partenaires.aggregate([{ $unwind: "$publicites" }, { $count: "count" }]);
+            const newAdsCount = await Partenaires.aggregate([{ $unwind: "$publicites" }, { $match: { "publicites.periode.debut": { $gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) } } }, { $count: "count" }]);
+    
+            const adsQuizCount = await Partenaires.aggregate([{ $unwind: "$pub_quiz" }, { $count: "count" }]);
+            const newAdsQuizCount = await Partenaires.aggregate([{ $unwind: "$pub_quiz" }, { $match: { "pub_quiz.periode.debut": { $gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) } } }, { $count: "count" }]);
+    
+            res.status(200).json({
+                users: usersCount,
+                newUsers: newUsersCount,
+                drivers: driversCount,
+                newDrivers: newDriversCount,
+                partners: partnersCount,
+                newPartners: newPartnersCount,
+                tours: toursCount[0]?.count || 0,
+                newTours: newToursCount[0]?.count || 0,
+                ads: adsCount[0]?.count || 0,
+                newAds: newAdsCount[0]?.count || 0,
+                adsQuiz: adsQuizCount[0]?.count || 0,
+                newAdsQuiz: newAdsQuizCount[0]?.count || 0,
+            });
+    
+        } catch (error) {
+            console.error("Erreur lors de la récupération des statistiques :", error);
+            res.status(500).json({ error: "Erreur lors de la récupération des statistiques" });
+        }
+    }
+    
+
+    
 }
 
 export const controllerAdminInstance = new Controlleradmin();

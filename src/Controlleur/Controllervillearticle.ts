@@ -1,162 +1,131 @@
-import { Request, Response } from "express";
-import { VilleArticle } from "../models/VilleArticle";
+import { Request, Response } from 'express';    
+import { PointInteret } from '../models/VilleArticle';
 import { dbConnection } from "../BDconnection/BDconnection";
-import mongoose from "mongoose";
-
-class ControllerVilleArticle {
-    async getVilleArticleByLocalitation(req: Request, res: Response): Promise<void> {
-        const ville = req.params.ville;
-        console.log("Recherche pour la ville:", ville);
-        
-        if(mongoose.connection.readyState !== 1){
-            console.log('Connexion à la base de données requise');
-            
-            await dbConnection.getConnection().catch(error => {
-                console.log('Erreur de connexion:', error);
-                res.status(500).json({ error: 'Erreur de connexion à la base de données' });
-                return;
-            });
-        }
-    
-        try {
-            console.log('Exécution de la requête avec nom de ville:', ville);
-            
-            const villeResults = await VilleArticle.find({
-                'ville.nom': ville
-            });
-            
-            console.log('Nombre de résultats trouvés:', villeResults.length);
-            
-            if(villeResults.length === 0) {
-                res.status(404).json({ message: 'Aucun article trouvé pour cette ville' });
-                return;
-            }
-            
-            res.status(200).json(villeResults);
-        } catch (error) {
-            console.log("Erreur lors de la recherche:", error);
-            res.status(500).json({ error: 'Erreur lors de la recherche de l\'article' });
-        }
-        // Suppression du bloc finally avec closeConnection
-    }
-
-    async getAllVilleArticles(req: Request, res: Response): Promise<void> {
-        if(mongoose.connection.readyState !== 1){
+import mongoose from 'mongoose';
+import { LookoutEquipment } from 'aws-sdk';
+class Controllervillearticle {
+    async getVilleArticle(req: Request, res: Response): Promise<void> {
+        if (mongoose.connection.readyState !== 1) {
             await dbConnection.getConnection().catch(error => {
                 res.status(500).json({ error: 'Erreur de connexion à la base de données' });
                 return;
             });
         }
-
         try {
-            const articles = await VilleArticle.find();
-            if (articles.length === 0) {
-                res.status(404).json({ message: 'Aucun article trouvé' });
-                return;
-            }
-            res.status(200).json(articles);
+            const villeArticle = await PointInteret.find();
+            res.status(200).json({ villeArticle });
         } catch (error) {
-            console.error('Erreur lors de la récupération des articles:', error);
-            res.status(500).json({ error: 'Erreur lors de la récupération des articles' });
+            res.status(500).json({ error: error });
         }
-        // Suppression du bloc finally avec closeConnection
     }
-
-    async getVilleArticleById(req: Request, res: Response): Promise<void> {
-        const { id } = req.params;
-
-        if(mongoose.connection.readyState !== 1){
-            await dbConnection.getConnection().catch(error => {
-                res.status(500).json({ error: 'Erreur de connexion à la base de données' });
-                return;
-            });
-        }
-
-        try {
-            const article = await VilleArticle.findById(id);
-            if (!article) {
-                res.status(404).json({ message: 'Article non trouvé' });
-                return;
-            }
-            res.status(200).json(article);
-        } catch (error) {
-            console.error('Erreur lors de la récupération de l\'article:', error);
-            res.status(500).json({ error: 'Erreur lors de la récupération de l\'article' });
-        }
-        // Suppression du bloc finally avec closeConnection
-    }
-
-    async updateVilleArticle(req: Request, res: Response): Promise<void> {
-        const { id } = req.params;
-
-        if(mongoose.connection.readyState !== 1){
-            await dbConnection.getConnection().catch(error => {
-                res.status(500).json({ error: 'Erreur de connexion à la base de données' });
-                return;
-            });
-        }
-
-        try {
-            const article = await VilleArticle.findByIdAndUpdate(
-                id, 
-                req.body, 
-                { new: true, runValidators: true }
-            );
-            if (!article) {
-                res.status(404).json({ message: 'Article non trouvé' });
-                return;
-            }
-            res.status(200).json(article);
-        } catch (error) {
-            console.error('Erreur lors de la mise à jour de l\'article:', error);
-            res.status(500).json({ error: 'Erreur lors de la mise à jour de l\'article' });
-        }
-        // Suppression du bloc finally avec closeConnection
-    }
-
     async createVilleArticle(req: Request, res: Response): Promise<void> {
-        if(mongoose.connection.readyState !== 1){
+        if (mongoose.connection.readyState !== 1) {
             await dbConnection.getConnection().catch(error => {
                 res.status(500).json({ error: 'Erreur de connexion à la base de données' });
                 return;
             });
         }
-
         try {
-            const articleData = req.body;
-            const newArticle = new VilleArticle(articleData);
-            const savedArticle = await newArticle.save();
-            res.status(201).json(savedArticle);
+            console.log(req.body);
+            
+            const { nom_lieu, description, categorie, ville, pays, adresse, rating, url_image, texte_alternatif } = req.body;
+            const villeArticle = new PointInteret({ 
+                nom_lieu, 
+                description, 
+                categorie, 
+                ville, 
+                pays, 
+                adresse, 
+                rating, 
+                url_image, 
+                texte_alternatif 
+            });
+            await villeArticle.save();
+            res.status(201).json({ message: 'Point d\'intérêt créé avec succès', villeArticle });
         } catch (error) {
-            console.error('Erreur lors de la création de l\'article:', error);
-            res.status(500).json({ error: 'Erreur lors de la création de l\'article' });
+            console.log(error);
+            res.status(500).json({ error: error });
         }
-        // Suppression du bloc finally avec closeConnection
     }
-    
-    async deleteVilleArticle(req: Request, res: Response): Promise<void> {
-        const { id } = req.params;
-
-        if(mongoose.connection.readyState !== 1){
+    async updateVilleArticle(req: Request, res: Response): Promise<void> {
+        if (mongoose.connection.readyState !== 1) {
             await dbConnection.getConnection().catch(error => {
                 res.status(500).json({ error: 'Erreur de connexion à la base de données' });
                 return;
             });
         }
-
         try {
-            const article = await VilleArticle.findByIdAndDelete(id);
-            if (!article) {
-                res.status(404).json({ message: 'Article non trouvé' });
+            const { id } = req.params;
+            
+            // Vérifier si l'élément existe
+            const existingPointInteret = await PointInteret.findById(id);
+            if (!existingPointInteret) {
+                res.status(404).json({ error: 'Point d\'intérêt non trouvé' });
                 return;
             }
-            res.status(200).json({ message: 'Article supprimé avec succès' });
+            
+            const { nom_lieu, description, categorie, ville, pays, adresse, rating, url_image, texte_alternatif } = req.body;
+            
+            // Mettre à jour le point d'intérêt
+            const updatedPointInteret = await PointInteret.findByIdAndUpdate(
+                id,
+                {
+                    nom_lieu,
+                    description,
+                    categorie,
+                    ville,
+                    pays,
+                    adresse,
+                    rating,
+                    url_image,
+                    texte_alternatif
+                },
+                { new: true, runValidators: true } // new: true retourne le document mis à jour
+            );
+            
+            res.status(200).json({ 
+                message: 'Point d\'intérêt mis à jour avec succès', 
+                pointInteret: updatedPointInteret 
+            });
         } catch (error) {
-            console.error('Erreur lors de la suppression de l\'article:', error);
-            res.status(500).json({ error: 'Erreur lors de la suppression de l\'article' });
+            console.log(error);
+            res.status(500).json({ error: error });
         }
-        // Suppression du bloc finally avec closeConnection
+    }
+    async deleteVilleArticle(req: Request, res: Response): Promise<void> {
+        if (mongoose.connection.readyState !== 1) {
+            await dbConnection.getConnection().catch(error => {
+                res.status(500).json({ error: 'Erreur de connexion à la base de données' });
+                return;
+            });
+        }
+        try {
+            const { id } = req.params;
+            console.log(id);
+            
+            const villeArticle = await PointInteret.findByIdAndDelete(id);
+            res.status(200).json({ message: 'Ville article supprimée avec succès', villeArticle });
+        } catch (error) {
+            res.status(500).json({ error: error });
+        }
+    }
+    async getVilleArticleByVille(req: Request, res: Response): Promise<void> {
+        if (mongoose.connection.readyState !== 1) {
+            await dbConnection.getConnection().catch(error => {
+                res.status(500).json({ error: 'Erreur de connexion à la base de données' });
+                return;
+            });
+        }
+        try {
+            const { ville } = req.params;
+            console.log('ville',ville);
+            const lowercaseVille=ville.toLowerCase();
+            const villeArticle = await PointInteret.find({'ville': lowercaseVille});
+            console.log('villeArticle',villeArticle);
+            res.status(200).json({ villeArticle });
+        } catch (error) {
+            res.status(500).json({ error: error });
+        }
     }
 }
-
-export const controllerVilleArticleInstance = new ControllerVilleArticle();
+export const ControllervillearticleInstance = new Controllervillearticle();

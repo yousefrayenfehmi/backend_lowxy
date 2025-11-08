@@ -8,8 +8,13 @@ import path from 'path';
 import bcrypt from "bcryptjs";
 import crypto from 'crypto';
 import passport from "passport";
-import mongoose from 'mongoose';
-
+import mongoose, { Types } from 'mongoose';
+import { Chauffeurs } from "../models/Chauffeure";
+import { log } from "console";
+import multer from 'multer';
+import { upload } from "./Controllerpartenaire"; 
+import { uploadToS3 } from "./Controllerpartenaire";
+    
 class controllerclient {
     constructor() {
         dotenv.config({ path: path.resolve(__dirname, '../.env') });
@@ -24,8 +29,10 @@ class controllerclient {
                 return;
             }
         }
+
     
         const authHeader = req.headers.authorization;
+        console.log(authHeader);
         const token = authHeader && authHeader.split(' ')[1];
     
         if (!token) {
@@ -44,14 +51,169 @@ class controllerclient {
                 return;
             }
             
+            // Stocker l'ID et l'objet touriste complet dans req
             req.user = id;
+            (req as any).touriste = touriste;
+            
             next();
         } catch (err) {
             res.status(403).json({ message: 'Token invalide' });
         } 
     }
 
+
+async uploadfacture(req: Request, res: Response): Promise<void> {
+    if (mongoose.connection.readyState !== 1) {
+        await dbConnection.getConnection();
+    }   
+    upload(req, res, async (err) => {
+        if (err) {
+            console.log(err);
+            
+            res.status(500).json({ error: 'Erreur lors du téléchargement de la facture' });
+            return;
+        }
+        
+        try {
+            const files = req.files as { [fieldname: string]: Express.Multer.File[] };
+            
+           
+            console.log("hani hne mawjoud wiwoooooo");
+            console.log(req.body);
+            
+            const factureFiles = files['facture'] || [];
+            
+            // Vérifier si des fichiers ont été téléchargés
+            if (!factureFiles.length) {
+                res.status(400).json({ error: 'Aucun fichier de facture téléchargé' });
+                return;
+            }
+            
+            const factureDetails = {
+                filename: factureFiles[0]?.filename,
+                originalname: factureFiles[0]?.originalname,
+                mimetype: factureFiles[0]?.mimetype,
+                size: factureFiles[0]?.size,
+                path: factureFiles[0]?.path,
+                type: 'banner'
+            };
+            console.log(factureDetails);
+            
+            // Générer un nom de fichier unique pour S3
+            if (!req.body.Id_quizz) {
+                res.status(400).json({ error: 'ID du quiz manquant' });
+                return;
+            }
+            
+            // Créer un chemin de destination pour S3
+            const fileExtension = factureFiles[0].originalname.split('.').pop() || 'jpg';
+            const fileName = `facture-${Date.now()}-${Math.round(Math.random() * 1E9)}.${fileExtension}`;
+            const destination = `factures/${req.body.Id_quizz}/${fileName}`;
+            
+            try {
+                const url = await uploadToS3(factureFiles[0], destination);
+                
+                const touriste = await Touristes.findOneAndUpdate(
+                    {'historique_quiz._id': req.body.Id_quizz},
+                    {$set: {'historique_quiz.$.facture': url}},
+                    {new: true}
+                );
+                
+                if (!touriste) {
+                    res.status(404).json({ error: 'Quiz non trouvé pour ce touriste' });
+                    return;
+                }
+                
+                res.status(200).json({ message: 'Facture téléchargée avec succès' });
+            } catch (error) {
+                console.log(error);
+                res.status(500).json({ error: 'Erreur lors du traitement de la facture' });
+            }
+        } catch (error) {
+            console.log(error);
+            
+            res.status(500).json({ error: 'Erreur lors du traitement de la facture' });
+        }
+    });
+}
+
+
+async Clientquizz(req: Request, res: Response): Promise<void>{
+    if (mongoose.connection.readyState !== 1) {
+        await dbConnection.getConnection();
+    }
+    try {
+        const touriste = await Touristes.find({ "historique_quiz.0": { $exists: true } });
+        if (!touriste) {
+            res.status(404).json({ error: 'Aucun touriste a passé un quizz' });
+        }
+        res.status(200).json(touriste);
+    } catch (error) {
+        res.status(500).json({ error: 'Erreur lors de la récupération des touristes qui ont passé un quizz' });
+    }
     
+    
+}
+
+async sauvgarderMontatnt(req: Request, res: Response): Promise<void>{
+    if (mongoose.connection.readyState !== 1) {
+        await dbConnection.getConnection();
+    }
+    try {
+        const { montant } = req.body;
+        const id=req.params.id;
+        const touriste = await Touristes.findOneAndUpdate(
+            { 'historique_quiz._id': id },
+            { $set: { 'historique_quiz.$.prix': montant } },
+            { new: true }
+        );
+        
+
+        res.status(200).json({ message: 'Montant sauvegardé avec succès' });
+    } catch (error) {
+        console.log(error);
+        res.status(500).json({ error: 'Erreur lors de la sauvegarde du montant' });
+    }
+    
+    
+}
+
+
+
+
+
+    
+    async getTouristeByToken(req: Request, res: Response): Promise<void> {
+        try {
+            if (mongoose.connection.readyState !== 1) {
+                await dbConnection.getConnection();
+            }
+    
+            const authHeader = req.headers.authorization;
+            const token = authHeader && authHeader.split(' ')[1];
+    
+            if (!token) {
+                 res.status(401).json({ message: 'Token manquant' });
+                 return 
+            }
+    
+            const decoded = jwt.verify(token as string, process.env.JWT_SECRET as string);
+            const { id } = decoded as { id: string };
+    
+            const touriste = await Touristes.findById(id).select('-motdepasse'); // Exclure le mot de passe
+    
+            if (!touriste) {
+                res.status(404).json({ message: 'Touriste non trouvé' });
+
+                return
+            }
+    
+            res.status(200).json(touriste);
+        } catch (err) {
+            res.status(403).json({ message: 'Token invalide' });
+            return
+        }
+    }
     
 
     
@@ -91,7 +253,7 @@ class controllerclient {
         }
 
         try {
-            const { email, motdepasse } = req.body;
+            const { email, password } = req.body;
             const touriste = await Touristes.findOne({ 'info.email': email, 'securites.isverified': true });
 
             if (!touriste || !touriste.info || !touriste.info.motdepasse) {
@@ -99,7 +261,7 @@ class controllerclient {
                 return;
             }
 
-            const match = await bcrypt.compare(motdepasse, touriste.info.motdepasse);
+            const match = await bcrypt.compare(password, touriste.info.motdepasse);
             if (!match) {
                 res.status(400).json({ error: 'Mot de passe incorrect' });
                 return;
@@ -142,21 +304,21 @@ class controllerclient {
                 res.status(404).json({ error: 'touriste non trouvé' });
                 return;
             }
-
-            const resetToken = crypto.randomBytes(20).toString("hex");
+            const resetToken = jwt.sign({ userId: touriste._id,type:'touriste' }, process.env.JWT_SECRET as string, { expiresIn: '1h' });
             const resetTokenExpiresAt = new Date(Date.now() + 1 * 60 * 60 * 1000);
             touriste.resetPasswordToken = resetToken;
             touriste.resetPasswordTokenExpire = resetTokenExpiresAt;
 
             await touriste.save();
-            Fonction.sendmail(email, 'password', "kmslqdkmlskfmdsfkmdskf");
+            Fonction.sendmail(email, 'password', process.env.front_end+"/Auth/mot_passe_oblier/reset/?token="+resetToken+"&type=personnel");
 
             res.status(200).json({
                 success: true,
                 message: 'email envoyé avec success'
             });
         } catch (error) {
-            res.status(500).json({ error: 'Erreur lors de l\'envoi du mail de réinitialisation' });
+
+            res.status(500).json({ error: "Erreur lors de l'envoi du mail de réinitialisation", errors: error });
         }
     }
 
@@ -172,7 +334,9 @@ class controllerclient {
 
         try {
             const { token } = req.params;
-            const { motdepasse } = req.body;
+            const { newPassword } = req.body;
+console.log(token);
+console.log(newPassword);
 
             const touriste = await Touristes.findOne({
                 resetPasswordToken: token,
@@ -184,7 +348,7 @@ class controllerclient {
                 return;
             }
 
-            const hashedPassword = await bcrypt.hash(motdepasse, 10);
+            const hashedPassword = await bcrypt.hash(newPassword, 10);
             touriste.info.motdepasse = hashedPassword;
             touriste.resetPasswordToken = undefined;
             touriste.resetPasswordTokenExpire = undefined as any;
@@ -193,48 +357,253 @@ class controllerclient {
 
             res.status(200).json({ success: true, message: "Password reset successful" });
         } catch (error) {
+            console.log(error);
             res.status(500).json({ error: 'Erreur lors de la réinitialisation du mot de passe' });
         }
     }
 
-    async renvoyeruncode(req: Request, res: Response): Promise<void> {
+   
+    
+    async changePassword(req: Request, res: Response): Promise<void> {
+        const authHeader = req.headers.authorization;
+        const token = authHeader && authHeader.split(' ')[1];
+    
+        if (!token) {
+             res.status(401).json({ message: 'Token manquant' })
+             return
+        }
+    
+        const { currentPassword, newPassword } = req.body;
+    
+        if (!newPassword || newPassword.length < 8) {
+             res.status(400).json({ message: 'New password must be at least 8 characters long' });
+             return
+        }
+    
+        try {
+            // Decode the token
+            const decoded = jwt.verify(token as string, process.env.JWT_SECRET as string);
+            const { id } = decoded as { id: string };
+    
+            // Ensure the id is a valid ObjectId
+            if (!Types.ObjectId.isValid(id)) {
+                 res.status(400).json({ message: 'Invalid user ID in token' });
+                 return
+            }
+    
+            // Find the user by id, excluding the password
+            const user = await Touristes.findById(id);
+    
+            if (!user) {
+                 res.status(404).json({ message: 'Touriste non trouvé' });
+                 return
+            }
+    
+            // Check if the current password matches
+            const isMatch = await bcrypt.compare(currentPassword, user.info.motdepasse);
+            if (!isMatch) {
+                 res.status(400).json({ message: 'Current password is incorrect' });
+                 return
+            }
+    
+            // Hash the new password
+            const hashedPassword = await bcrypt.hash(newPassword, 10);
+            user.info.motdepasse = hashedPassword;
+            await user.save();
+    
+            res.status(200).json({ message: 'Password changed successfully' });
+        } catch (error) {
+            console.error('Error:', error);
+            res.status(500).json({ message: 'An error occurred while changing the password' });
+        }
+    }
+    
+      
+
+  async reenvoyeruncode(req: Request, res: Response): Promise<void> {
+    if (mongoose.connection.readyState !== 1) {
+        await dbConnection.getConnection().catch(error => {
+            res.status(500).json({ error: 'Erreur de connexion à la base de données' });
+            return;
+        });
+    }
+    try {
+        const id=req.user;
+        const touriste = await Touristes.findOne({ '_id': id });
+
+        if (!touriste) {
+            res.status(404).json({ error: 'touriste non trouveè' });
+            return;
+        }
+        const code = Fonction.generecode(100000, 999999);
+        touriste.securites.code = code;
+        Fonction.sendmail(touriste.info.email, 'Inscription', code.toString());
+        await touriste.save();
+        res.status(200).json({ success: true, message: 'Code envoyé avec success' });
+    } catch (error) {
+        res.status(500).json({ error: 'Erreur lors de l\'envoi du code' });
+
+  }
+
+
+}
+async completerl(req: Request, res: Response): Promise<void> {
         if (mongoose.connection.readyState !== 1) {
-            try {
-                await dbConnection.getConnection();
-            } catch (error) {
+            await dbConnection.getConnection().catch(error => {
                 res.status(500).json({ error: 'Erreur de connexion à la base de données' });
                 return;
-            }
+            });
         }
-
+        
+      
+        
+    
         try {
             const id = req.user;
-            const touriste = await Touristes.findById(id);
-
+            let touriste = await Touristes.findById(id);
+            
+            console.log(req.body);
+            
+    
             if (!touriste) {
+                res.status(404).json({ error: 'client non trouvé' });
+                return;
+            }
+            if (req.body.historique_quiz && touriste.historique_quiz ) {
+                touriste.historique_quiz.push(req.body.historique_quiz);
+            }
+            // Mise à jour sélective des champs
+            const updateFields = {
+                // Champs textuels simples
+                'info.nom_complet': req.body.info?.nom_complet ?? touriste.info.nom_complet,
+                'info.telephone': req.body.info?.telephone ?? touriste.info.telephone,
+                
+                // Champs de date
+                'info.naissance': req.body.info?.naissance ?? touriste.info.naissance,
+                
+                // Adresse imbriquée
+                'info.adresse': {
+                    'ville': req.body.info?.adresse?.ville ?? touriste.info.adresse.ville,
+                    'pays': req.body.info?.adresse?.pays ?? touriste.info.adresse.pays
+                },
+                
+                // Champs additionnels
+                'info.rib': req.body.info?.rib ?? touriste.info.rib,
+                // Ajoutez d'autres champs ici
+                'info.matricule_taxi': req.body.info?.matricule_taxi ?? touriste.info.matricule_taxi,
+                'preferences.langue': req.body.preferences?.langue ?? touriste.preferences.langue,
+                'preferences.langue_preferee': req.body.preferences?.langue_preferee ?? touriste.preferences.langue_preferee,
+                'preferences.centres_interet': req.body.preferences?.centres_interet ?? touriste.preferences.centres_interet,
+                'historique_quiz':  touriste.historique_quiz
+            };
+            
+    
+            // Mise à jour partielle
+            const updatedTouriste = await Touristes.findByIdAndUpdate(
+                id, 
+                { $set: updateFields }, 
+                { 
+                    new: true,  // Retourne le document mis à jour
+                    runValidators: true  // Valide les champs mis à jour
+                }
+            );
+    
+            if (!updatedTouriste) {
                 res.status(404).json({ error: 'touriste non trouvé' });
                 return;
             }
-
-            const Code: string = Fonction.generecode();
-            touriste.securites = {
-                code: Code,
-                date: new Date(),
-                isverified: false,
-            };
-
-            await touriste.save();
-            Fonction.sendmail(touriste.info.email, 'Inscription', Code);
-
+            console.log(updatedTouriste.historique_quiz);
+            
+    
             res.status(200).json({
-                success: true,
-                message: 'email envoyé avec success'
+                    message: 'Profil mis à jour avec succès',
+                    //retourne historique quiz dernier
+                    historique_quiz: updatedTouriste.historique_quiz?.at(-1) || null,
+                    
             });
+    
         } catch (error) {
-            res.status(500).json({ error: 'Erreur lors de l\'envoi du nouveau code' });
+            console.error('Erreur lors de la mise à jour du touriste:', error);
+            res.status(500).json({ 
+                error: 'Erreur lors de la mise à jour du touriste'
+                
+            });
         }
     }
 
+    async authavecgoogle(req: Request, res: Response): Promise<void> {
+        if (mongoose.connection.readyState !== 1) {
+            await dbConnection.getConnection().catch(error => {
+                res.status(500).json({ error: 'Erreur de connexion à la base de données' });
+                return;
+        })
+    }
+    try {
+        const {email}=req.body.info;
+        const touriste=await Touristes.findOne({'info.email':email});
+
+        if( touriste && touriste.info.strategy=='facebook'){
+            res.status(400).json({ error: 'Un touriste avec cet email existe déjà' });
+                return;
+        }
+        else if(touriste && touriste.info.strategy=='google'){
+            const token=Fonction.createtokenetcookies(res,touriste._id);
+            res.status(200).json({ success: true, touriste: touriste, token: token });
+                return;
+        }
+        const touristee = new Touristes(req.body);
+        touristee.info.strategy="google";
+        touristee.info.motdepasse=await bcrypt.hash("google", 10);
+        touristee.securites.isverified=true;
+        await touristee.save();
+        const token=Fonction.createtokenetcookies(res, touristee._id);
+        res.status(201).json({ success: true, touriste: touristee, token: token });
+
+    } catch (error) {
+        console.log('Erreur lors de la création du touriste:', error);
+        
+        res.status(500).json({ error: 'Erreur lors de la création du touriste' });
+
+    }
+
+}
+
+
+
+
+async authavecfacebook(req: Request, res: Response): Promise<void> {
+        if (mongoose.connection.readyState !== 1) {
+            await dbConnection.getConnection().catch(error => {
+                res.status(500).json({ error: 'Erreur de connexion à la base de données' });
+                return;
+        })
+    }
+    try {
+        const {email}=req.body.info;
+        const touriste=await Touristes.findOne({'info.email':email});
+        if(touriste && touriste.info.strategy=='google'){
+            res.status(400).json({ error: 'Un touriste avec cet email existe déjà' });
+                return;
+        }
+        else if(touriste && touriste.info.strategy=='facebook'){
+            const token=Fonction.createtokenetcookies(res,touriste._id);
+            res.status(200).json({ success: true, touriste: touriste, token: token });
+                return;
+        }
+        const touristee = new Touristes(req.body);
+        touristee.info.strategy="facebook";
+        touristee.info.motdepasse=await bcrypt.hash("facebook", 10);
+        touristee.securites.isverified=true;
+        await touristee.save();
+        const token=Fonction.createtokenetcookies(res, touristee._id);
+        res.status(201).json({ success: true, touriste: touristee, token: token });
+
+    } catch (error) {
+        res.status(500).json({ error: 'Erreur lors de la création du touriste' });
+
+    }
+}
+    
     async Signup(req: Request, res: Response): Promise<void> {
         if (mongoose.connection.readyState !== 1) {
             try {
@@ -246,16 +615,26 @@ class controllerclient {
         }
 
         try {
+            console.log(req.body);
+            
             const { email } = req.body.info;
             const touristeExistant = await Touristes.findOne({ 'info.email': email });
 
             if (touristeExistant) {
+                console.log();
+                
                 res.status(400).json({ error: 'Un touriste avec cet email existe déjà' });
                 return;
             }
+            /*
+            const chauffeur=await Chauffeurs.findOne({ 'info.matricule': req.body.info.matricule_taxi });
+            if (!chauffeur) {
+                res.status(400).json({ error: "Un chauffeur avec cette matricule n'existe pas " });
+                return;
+            }*/
 
             const touriste = new Touristes(req.body);
-            const Code: string = Fonction.generecode();
+            const Code: string = Fonction.generecode(100000,900000);;
             touriste.securites = {
                 code: Code,
                 date: new Date(),
@@ -263,23 +642,18 @@ class controllerclient {
             };
             touriste.info.strategy = "local";
             touriste.info.motdepasse = await bcrypt.hash(touriste.info.motdepasse, 10);
-
+            touriste.info.matricule_taxi=req.body.info.matricule_taxi;
             const savedTouriste = await touriste.save();
             const token = Fonction.createtokenetcookies(res, savedTouriste._id);
             await Fonction.sendmail(email, 'Inscription', Code);
             
             res.status(201).json({
-                touriste: {
-                    _id: savedTouriste._id,
-                    info: {
-                        nom_complet: savedTouriste.info.nom_complet,
-                        email: savedTouriste.info.email,
-                        tel: savedTouriste.info.telephone
-                    }
-                },
+                touriste: savedTouriste,
                 token
             });
         } catch (error) {
+            console.log(error);
+            
             res.status(500).json({ error: 'Erreur lors de la création du touriste' });
         }
     }
@@ -295,16 +669,21 @@ class controllerclient {
         }
 
         try {
+            console.log(req.body);
             const id = req.user;
-            const { code } = req.body;
-
+            const  {code}  = req.body;
+            
+            
             const tourist = await Touristes.findOne({
                 '_id': id,
                 'securites.code': code,
                 'securites.date': { $gt: new Date(Date.now() - 15 * 60 * 1000) }
+                
             });
 
             if (!tourist) {
+                console.log('Le code est invalide ou a expiré');
+                
                 res.status(400).json({
                     success: false,
                     message: 'Le code est invalide ou a expiré'
@@ -323,6 +702,7 @@ class controllerclient {
                 message: 'Email vérifié avec succès'
             });
         } catch (error) {
+            console.log(error);
             res.status(500).json({
                 success: false,
                 message: 'Erreur lors de la vérification'
@@ -432,6 +812,39 @@ class controllerclient {
             res.status(500).json({ error: 'Erreur lors de la suppression du touriste' });
         }
     }
+
+
+
+    async getTouristebymoth(req: Request, res: Response): Promise<void> {
+        if (mongoose.connection.readyState !== 1) {
+            try {
+                await dbConnection.getConnection();
+            } catch (error) {
+                res.status(500).json({ error: 'Erreur de connexion à la base de données' });
+                return;
+            }
+        }
+
+        try {
+            //recuperer moth de systeme
+
+            const moth=new Date().getMonth()+1;
+            const year=new Date().getFullYear();
+            const precedentmoth=new Date().getMonth()
+            console.log(precedentmoth);
+            ;
+            
+            const touriste = await Touristes.find({ 'createdAt': { $gte: new Date(year, moth - 1, 1), $lt: new Date(year, moth, 1) } });
+            const touristeprecedent = await Touristes.find({ 'createdAt': { $gte: new Date(year, precedentmoth - 1, 1), $lt: new Date(year, precedentmoth, 1) } });
+            res.status(200).json({ touriste: touriste.length, touristeprecedent: touristeprecedent.length });
+        }
+        catch (error) {
+            res.status(500).json({ error: 'Erreur lors de la récupération du touriste' });
+        }
+    }
+   
+
+
 }
 
 export const controllerclientInstance = new controllerclient();

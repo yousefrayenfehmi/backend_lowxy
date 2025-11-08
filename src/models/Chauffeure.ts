@@ -2,53 +2,76 @@ import mongoose, { Schema, Document, Types } from 'mongoose';
 import  IChauffeurs  from '../Interface/Interfacechauffeur';
 // Interface pour le chauffeur
 
-// Schéma Mongoose
+// Schéma Mongoose// Mongoose Schema
 const ChauffeurSchema = new Schema<IChauffeurs>({
-   info: {
-       nom_complet: { type: String },
-       email: { type: String, unique: true },
-       telephone: { type: String },
-       motdepasse: { type: String},
-       strategy:{type: String,},
-       google_id:{type:String},
-       facebook_id:{type:String}
-   },
-   vehicule: {
-       matricule: { type: String, required: false },
-       modele: { type: String, required: false },
-       places: { type: Number, required: false }
-   },
-   documents: {
-       permis: {
-           numero: { type: String, required: false },
-           expiration: { type: Date, required: false }
-       },
-       assurance: {
-           nom: { type: String, required: false },
-           numero: { type: String, required: false },
-           expiration: { type: Date, required: false }
-       },
-       carte_taxi: {
-           numero: { type: String, required: false },
-           expiration: { type: Date, required: false }
-       }
-   },
-   securites: {
-       code: { type: String, required: false },
-       date: { type: Date, required: false },
-       isverified: { type: Boolean, default: false }
-   },
-   resetPasswordToken: String,
-   resetPasswordTokenExpire: Date
+    info: {
+        nom_complet: { type: String },
+        email: { type: String, unique: true },
+        telephone: { type: String },
+        motdepasse: { type: String },
+        strategy: { type: String },
+        google_id: { type: String },
+        naissance: {
+            type: Date,
+            required: false
+        },
+        adresse: {
+            ville: {
+                type: String,
+                required: false,
+            },
+            pays: {
+                type: String,
+                required: false,
+            }
+        },
+        facebook_id: { type: String },
+        matricule: { type: String, required: false, unique: true },
+        Rib: { type: String, required: false }
+    },
+    vehicule: {
+        marque: { type: String, required: false },
+        matricule: { type: String, required: false },
+        modele: { type: String, required: false },
+        places: { type: Number, required: false }
+    },
+    documents: {
+        permis: {
+            numero: { type: String, required: false },
+            expiration: { type: Date, required: false },
+            imagePath: { type: String, required: false } // Image path for permis
+        },
+        assurance: {
+            nom: { type: String, required: false },
+            numero: { type: String, required: false },
+            expiration: { type: Date, required: false },
+            imagePath: { type: String, required: false } // Image path for assurance
+        },
+        carte_taxi: {
+            numero: { type: String, required: false },
+            expiration: { type: Date, required: false },
+            imagePath: { type: String, required: false } // Image path for carte taxi
+        }
+    },
+    securites: {
+        code: { type: String, required: false },
+        date: { type: Date, required: false },
+        isverified: { type: Boolean, default: false }
+    },
+    resetPasswordToken: String,
+    resetPasswordTokenExpire: Date,
+    active_coverings: { type: [{id:{type:Types.ObjectId, required:false},date_debut:{type:Date, required:false},date_fin:{type:Date, required:false},status:{type:String, required:false}}], required: false },
+    covering_history: { type: [Types.ObjectId], required: false }
 }, {
-   timestamps: true
+    timestamps: true
 });
+
+// Index for securites
 ChauffeurSchema.index({ "securites.date": 1 }, { 
-    expireAfterSeconds: 10,
+    expireAfterSeconds: 900,
     partialFilterExpression: { "securites.isverified": false }
 });
-ChauffeurSchema.index({ "resetPasswordTokenExpire": 1 }, {
-    expireAfterSeconds: 3600})
+
 
 // Création du modèle
 const Chauffeur = mongoose.model<IChauffeurs>('Chauffeur', ChauffeurSchema);
