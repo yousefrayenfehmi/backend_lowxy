@@ -39,7 +39,7 @@ import { ControllerpartenairInstance } from './Controlleur/Controllerpartenaire'
 dotenv.config({ path: path.resolve(__dirname, '../.env') });
 
 const app: Application = express();
-const port = 3000;
+const port = 5000;
 
 // Configuration S3
 const s3 = new S3({
@@ -116,7 +116,7 @@ app.listen(port, async () => {
   console.log(`Server is running on port ${port}`);
   console.log(`Server is running on port ${port}`);
   console.log(`Server is running on port ${port}`);
-  console.log(`backend is running`);
+  console.log(`ba`);
   // Planifier l'exécution quotidienne des fonctions pour déplacer les campagnes expirées vers l'historique
   // Format cron: seconde(0-59) minute(0-59) heure(0-23) jour_du_mois(1-31) mois(1-12) jour_de_la_semaine(0-7)
   /*cron.schedule('* * * * *', async () => { // Chaque minute
