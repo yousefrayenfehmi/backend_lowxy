@@ -114,7 +114,9 @@ app.use((err: Error, req: Request, res: Response, next: Function) => {
 // Démarrer le serveur
 app.listen(port, async () => {
   console.log(`Server is running on port ${port}`);
-  
+  console.log(`Server is running on port ${port}`);
+  console.log(`Server is running on port ${port}`);
+  console.log(`backend is running`);
   // Planifier l'exécution quotidienne des fonctions pour déplacer les campagnes expirées vers l'historique
   // Format cron: seconde(0-59) minute(0-59) heure(0-23) jour_du_mois(1-31) mois(1-12) jour_de_la_semaine(0-7)
   /*cron.schedule('* * * * *', async () => { // Chaque minute
