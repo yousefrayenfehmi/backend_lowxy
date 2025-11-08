@@ -6,7 +6,7 @@ module.exports = {
     exec_mode: 'cluster', // Mode cluster pour la production
     env: {
       NODE_ENV: 'production',
-      PORT: 3000
+      PORT: 5000
     },
     // Configuration des logs
     error_file: './logs/pm2-error.log',
