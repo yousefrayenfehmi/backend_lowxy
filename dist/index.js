@@ -68,7 +68,8 @@ app.use('/reservations/webhook', express_1.default.raw({ type: 'application/json
 app.use(express_1.default.json());
 app.use(express_1.default.urlencoded({ extended: true }));
 app.get('/', (req, res) => {
-    res.status(200).json({ message: 'API iso running' });
+    res.status(200).json({ message: 'API iso running rahoulena' });
+
 });
 // Et enfin vos routes
 app.use(Routesgmailstrategy_1.default);
