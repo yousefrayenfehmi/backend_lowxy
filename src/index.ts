@@ -112,7 +112,7 @@ app.use((err: Error, req: Request, res: Response, next: Function) => {
 });
 
 // Démarrer le serveur
-app.listen(port, async () => {
+app.listen(port, '0.0.0.0', async () => {
   console.log(`Server is running on port ${port}`);
   console.log(`Server is running on port ${port}`);
   console.log(`Server is running on port ${port}`);
