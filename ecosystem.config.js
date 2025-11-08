@@ -2,7 +2,7 @@ module.exports = {
   apps: [
     {
       name: 'backend_lowxy',
-      script: 'src/index.js',       // Ton build TypeScript
+      script: 'src/index.ts',       // Ton build TypeScript
       instances: 'max',              // Utilise tous les CPU disponibles
       exec_mode: 'cluster',           // Mode cluster
       env: {
