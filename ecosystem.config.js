@@ -27,7 +27,7 @@ module.exports = {
     // Variables d'environnement supplémentaires
     env_production: {
       NODE_ENV: 'production',
-      PORT: 3000
+      PORT: 5000
     }
   }],
 
